@@ -1,0 +1,51 @@
+﻿node : c:\Users\Asus\Download
+s\carromm\server\server-12.js
+:970
+At line:1 char:1
++ node "c:\Users\Asus\Downloa
+ds\carromm\server\server-12.j
+s" > c:\Users ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~
+    + CategoryInfo           
+   : NotSpecified: (c:\User  
+  s\Asus\D...erver-12.js:9   
+ 70:String) [], RemoteExc    
+eption
+    + FullyQualifiedErrorId  
+   : NativeCommandError
+ 
+    }
+    ^
+
+SyntaxError: missing ) after 
+argument list
+    at wrapSafe (node:interna
+l/modules/cjs/loader:1735:18)
+    at Module._compile (node:
+internal/modules/cjs/loader:1
+778:20)
+    at Object..js (node:inter
+nal/modules/cjs/loader:1936:1
+0)
+    at Module.load (node:inte
+rnal/modules/cjs/loader:1525:
+32)
+    at Module._load (node:int
+ernal/modules/cjs/loader:1327
+:12)
+    at 
+TracingChannel.traceSync (nod
+e:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:i
+nternal/modules/cjs/loader:24
+5:24)
+    at 
+Module.executeUserEntryPoint 
+[as runMain] (node:internal/m
+odules/run_main:154:5)
+    at node:internal/main/run
+_main_module:33:47
+
+Node.js v24.13.1

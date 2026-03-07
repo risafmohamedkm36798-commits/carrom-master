@@ -1,0 +1,33 @@
+﻿node : C:\Users\Asus\Do
+wnloads\carromm\server\
+server-12.js:970
+At line:1 char:1
++ node --check 
+server-12.js > 
+node_out.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (C:\Users\Asus   
+ \D...erver-12.js:9    
+70:String) [], Rem    
+oteException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+    }
+    ^
+
+SyntaxError: missing ) 
+after argument list
+    at wrapSafe (node:i
+nternal/modules/cjs/loa
+der:1735:18)
+    at checkSyntax (nod
+e:internal/main/check_s
+yntax:76:3)
+
+Node.js v24.13.1

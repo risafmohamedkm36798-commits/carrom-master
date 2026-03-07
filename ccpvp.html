@@ -1,0 +1,3308 @@
+﻿<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>Carrom Master PVP</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <style>
+    html,
+    body {
+      margin: 0;
+      overflow: hidden;
+      touch-action: none;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: radial-gradient(circle at top, #3b210f 0%, #050100 55%, #000000 100%);
+    }
+
+    canvas {
+      display: block;
+      background: transparent;
+      border-radius: 18px;
+      border: 14px solid #2a180b;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.9), inset 0 0 60px rgba(0, 0, 0, 0.5);
+    }
+
+    #ui {
+      position: fixed;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: none;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 16px;
+      width: min(520px, 95%);
+      color: #fff;
+      z-index: 10;
+      pointer-events: none;
+      background: linear-gradient(135deg, rgba(20, 10, 5, .95), rgba(45, 25, 10, .95));
+      border-radius: 999px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, .8);
+      border: 1px solid rgba(255, 204, 0, .4);
+    }
+
+    .stat {
+      background: rgba(0, 0, 0, .6);
+      padding: 4px 14px;
+      border-radius: 999px;
+      border: 1.5px solid #ffcc00;
+      font-weight: 700;
+      font-size: .75rem;
+      min-width: 80px;
+      text-align: center;
+    }
+
+    #center-ui {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    #match-timer {
+      font-size: 1.2rem;
+      font-weight: 900;
+      color: #ffcc00;
+    }
+
+    #turnLabel {
+      text-transform: uppercase;
+      color: #fff;
+      font-weight: 800;
+      font-size: .65rem;
+      letter-spacing: 1px;
+    }
+
+    #timer-container {
+      background: #ffcc00;
+      color: #000;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      font-weight: 900;
+      font-size: .8rem;
+    }
+
+    #controls {
+      position: fixed;
+      bottom: 15px;
+      width: 100%;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 85%;
+      max-width: 550px;
+      height: 16px;
+      background: linear-gradient(to right, #4a2c16, #7a4a23);
+      border-radius: 999px;
+      outline: none;
+      border: 2px solid #b38550;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, .8);
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 42px;
+      height: 42px;
+      background: radial-gradient(circle at 30% 20%, #fff 10%, #d0d0d0 100%);
+      border-radius: 50%;
+      border: 3px solid #111;
+      cursor: pointer;
+    }
+
+    #status-msg {
+      position: fixed;
+      top: 22%;
+      background: rgba(0, 0, 0, .95);
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 20px;
+      display: none;
+      z-index: 250;
+      border: 2px solid #ffcc00;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    #overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, .98);
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 300;
+      color: white;
+      text-align: center;
+    }
+
+    #home-page {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle, #4a2c16 0%, #050100 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 200;
+    }
+
+    #home-page h1 {
+      font-size: clamp(2rem, 10vw, 3.5rem);
+      color: #ffcc00;
+      text-shadow: 0 0 20px rgba(255, 204, 0, .6);
+      margin-bottom: 40px;
+      text-transform: uppercase;
+      font-weight: 900;
+      text-align: center;
+      padding: 0 15px;
+      line-height: 1.1;
+    }
+
+    .menu-btn {
+      width: min(260px, 80vw);
+      padding: 16px 20px;
+      margin: 8px auto;
+      display: block;
+      font-size: 1.1rem;
+      font-weight: 800;
+      background: linear-gradient(to bottom, #ffcc00, #cca300);
+      color: #000;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 5px 0 #806600, 0 8px 18px rgba(0, 0, 0, .5);
+      transition: transform .1s, box-shadow .1s;
+      letter-spacing: 1px;
+    }
+
+    .menu-btn:active {
+      transform: translateY(3px);
+      box-shadow: 0 2px 0 #806600;
+    }
+
+
+    .toggle-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #ffcc00;
+      font-weight: bold;
+      font-size: .9rem;
+    }
+
+    #debug-panel {
+      position: fixed;
+      bottom: 70px;
+      right: 10px;
+      background: rgba(0, 0, 0, .85);
+      color: #0f0;
+      font-family: monospace;
+      font-size: 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #0f0;
+      z-index: 9998;
+      display: none;
+      min-width: 210px;
+      line-height: 1.6;
+    }
+
+    #wait-spinner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, .7);
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 400;
+      color: #ffcc00;
+      font-size: 1.4rem;
+      font-weight: 900;
+    }
+
+    #topBar {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+    }
+
+    #profileIcon {
+      width: 45px;
+      height: 45px;
+      background: #2196F3;
+      /* BLUE */
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      cursor: pointer;
+      color: white;
+    }
+
+    .auth-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+
+    .auth-box {
+      background: #1f2937;
+      padding: 25px;
+      border-radius: 12px;
+      width: 300px;
+      text-align: center;
+      color: white;
+    }
+
+    .auth-box input {
+      width: 100%;
+      margin: 8px 0;
+      padding: 8px;
+      border-radius: 6px;
+      border: none;
+    }
+
+    .auth-box button {
+      width: 100%;
+      margin: 6px 0;
+      padding: 8px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      background: #2563eb;
+      color: white;
+    }
+
+    .auth-box button:hover {
+      background: #1d4ed8;
+    }
+
+    .redeem-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+
+    .redeem-box {
+      background: #1f2937;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      color: white;
+      width: 250px;
+    }
+
+    .redeem-box input {
+      width: 100%;
+      padding: 8px;
+      margin: 10px 0;
+      border-radius: 6px;
+      border: none;
+    }
+
+    .redeem-box button {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+      background: #facc15;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    #tParticipants div {
+      padding: 5px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Legacy .popup overridden below by new .popup class */
+
+    .hidden {
+      display: none;
+    }
+
+    .popup-content {
+      background: #111;
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+      width: 300px;
+    }
+
+    #redeemIcon {
+      position: absolute;
+      top: 90px;
+      right: 20px;
+      font-size: 22px;
+      cursor: pointer;
+      color: gold;
+    }
+
+    #redeemIcon:hover {
+      transform: scale(1.2);
+    }
+
+    /* Modal Styles */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+    }
+
+    .modal-content {
+      background: #1f2937;
+      padding: 20px 18px;
+      border-radius: 16px;
+      width: calc(100vw - 48px);
+      max-width: 400px;
+      text-align: center;
+      color: white;
+      border: 1px solid rgba(255, 204, 0, 0.3);
+      box-sizing: border-box;
+    }
+
+    .modal-content input,
+    .modal-content select {
+      width: 100%;
+      padding: 11px 12px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: 1px solid #374151;
+      background: #111827;
+      color: white;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+
+    .modal-content label {
+      display: block;
+      text-align: left;
+      font-size: 12px;
+      color: #9ca3af;
+      margin: 6px 0 2px 2px;
+    }
+
+    .modal-content button {
+      width: 100%;
+      padding: 12px;
+      margin: 5px 0;
+      border-radius: 8px;
+      border: none;
+      background: gold;
+      color: black;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Tabs Styling */
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid #374151;
+      padding-bottom: 10px;
+    }
+
+    .tabs button {
+      flex: 1;
+      padding: 10px;
+      background: #374151;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .tabs button:hover {
+      background: #4b5563;
+    }
+
+    #createSection label {
+      display: block;
+      text-align: left;
+      font-size: 12px;
+      color: #9ca3af;
+      margin: 8px 0 4px 5px;
+    }
+
+    #tournamentList {
+      max-height: 250px;
+      overflow-y: auto;
+      margin-top: 10px;
+    }
+
+    #tournamentList div {
+      background: #111827;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      border: 1px solid #374151;
+      text-align: left;
+    }
+
+    #tournamentList p {
+      margin: 0 0 8px 0;
+      font-weight: bold;
+    }
+
+    #tournamentList button {
+      width: auto;
+      padding: 6px 15px;
+      font-size: 12px;
+    }
+
+    .glow {
+      animation: pulse 1s infinite;
+      background: gold !important;
+      color: black !important;
+      box-shadow: 0 0 20px gold !important;
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.1);
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    .playerCard {
+      background: #1c1c1c;
+      padding: 10px;
+      margin: 6px;
+      border-radius: 10px;
+      border: 1px solid #333;
+      text-align: left;
+    }
+
+    .battleBtn {
+      background: #ff0040 !important;
+      color: white !important;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 10px;
+      font-size: 18px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .battleBtn.active {
+      animation: pulse 1s infinite;
+    }
+
+    .battle-ready {
+      background: #ffcc00 !important;
+      color: black !important;
+      animation: pulse 1s infinite;
+      box-shadow: 0 0 15px #ffcc00;
+    }
+
+
+    .battleBtn:disabled {
+      background: #4b5563 !important;
+      cursor: not-allowed;
+      animation: none !important;
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.1);
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    .pulse-animation {
+      animation: pulse 1s infinite;
+    }
+
+    .live-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: grey;
+      display: inline-block;
+      margin-left: 6px;
+      cursor: pointer;
+    }
+
+    .live-dot.live {
+      background: red;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      50% {
+        opacity: 0.3;
+      }
+    }
+
+    #playerList {
+      max-height: 350px;
+      overflow-y: auto;
+    }
+
+    .playerRow {
+      display: flex;
+      align-items: center;
+      background: #1c1c1c;
+      padding: 10px;
+      margin: 6px 0;
+      border-radius: 10px;
+      gap: 10px;
+    }
+
+    .rank {
+      color: #00ffcc;
+      font-weight: bold;
+      min-width: 30px;
+    }
+
+    .name {
+      flex: 1;
+      color: white;
+    }
+
+    .wins {
+      color: gold;
+      font-weight: bold;
+    }
+
+    .lives {
+      color: red;
+    }
+
+    .playerRow {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.06);
+      margin-bottom: 6px;
+      border-radius: 10px;
+      font-size: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* Screen system: all .screen elements hidden by default */
+    .screen {
+      display: none !important;
+    }
+
+    /* Only the active screen is visible */
+    .screen.active {
+      display: flex !important;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 100svh;
+    }
+
+    /* mainMenu stays in flow — full-screen centered column */
+    #mainMenu.screen.active {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at top, #3b210f 0%, #050100 55%, #000 100%);
+      z-index: 200;
+    }
+
+    /* Popups overlay the screen centered */
+    .popup.screen.active {
+      position: fixed;
+      inset: 0;
+      display: flex !important;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.75);
+      z-index: 5000;
+    }
+
+    /* gameContainer is the game board — full screen */
+    #gameContainer.screen.active {
+      position: fixed;
+      inset: 0;
+      display: flex !important;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Inner card for popups */
+    .popup>.modal-content,
+    .popup>.popup-content {
+      background: linear-gradient(145deg, #1e1e2f, #111827);
+      border-radius: 16px;
+      padding: 24px 20px;
+      width: calc(100vw - 48px);
+      max-width: 400px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.8);
+      border: 1px solid rgba(255, 204, 0, 0.2);
+    }
+
+    #gameTitle {
+      font-size: clamp(2rem, 10vw, 3rem);
+      font-weight: 900;
+      background: linear-gradient(45deg, #ffd700, #ff8c00);
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-align: center;
+      margin-bottom: 24px;
+      line-height: 1.15;
+      padding: 0 16px;
+    }
+
+
+    /* Only style buttons that are DIRECT children of popup (tournament selection menu) */
+    .popup>.popup-content button {
+      display: block;
+      width: 100%;
+      padding: 13px;
+      margin-bottom: 10px;
+      background: #1f2937;
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 15px;
+      transition: background 0.15s;
+    }
+
+    .popup>.popup-content button:hover {
+      background: #374151;
+    }
+
+    #settings-panel {
+      margin-top: 24px;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 12px 22px;
+      border-radius: 16px;
+      display: flex;
+      gap: 20px;
+      border: 1px solid rgba(255, 204, 0, 0.3);
+    }
+
+    #lobbyPlayers::-webkit-scrollbar,
+    #lobbyPlayers::-webkit-scrollbar-thumb {
+      width: 4px;
+      background: #374151;
+      border-radius: 8px;
+    }
+
+
+    #playerList::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    #playerList::-webkit-scrollbar-thumb {
+      background: #374151;
+      border-radius: 10px;
+    }
+  </style>
+
+<body>
+
+  <!-- ROOM PANEL -->
+  <div id="roomPanel"
+    style="position:fixed;top:18px;left:18px;background:rgba(255,255,255,.96);padding:10px;border-radius:8px;z-index:9999;font-family:Segoe UI;display:none;min-width:260px;box-shadow:0 8px 30px rgba(0,0,0,.4);">
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input id="roomInput" placeholder="room name"
+        style="flex:1;padding:8px;border-radius:6px;border:1px solid #ccc;font-weight:700;">
+      <button id="createBtn"
+        style="padding:8px 10px;border-radius:6px;background:#2ecc71;color:#fff;border:none;cursor:pointer;">Create</button>
+    </div>
+    <div style="margin-top:8px;display:flex;gap:8px;">
+      <button id="joinBtn"
+        style="flex:1;padding:8px;border-radius:6px;background:#3498db;color:#fff;border:none;cursor:pointer;">Join</button>
+      <button id="battleBtn"
+        style="flex:1;padding:8px;border-radius:6px;background:#ffcc00;color:#000;border:none;cursor:pointer;font-weight:800;">Battle</button>
+    </div>
+    <div id="roomInfo" style="margin-top:8px;font-size:12px;color:#222;font-weight:700;">Room: —</div>
+    <div style="margin-top:6px;display:flex;gap:6px;justify-content:flex-end;">
+      <button id="leaveBtn"
+        style="padding:6px 10px;border-radius:6px;background:#e74c3c;color:#fff;border:none;cursor:pointer;display:none;">Leave</button>
+      <button id="closePanel"
+        style="padding:6px 10px;border-radius:6px;background:#333;color:#fff;border:none;cursor:pointer;">Close</button>
+    </div>
+  </div>
+
+  <div id="mainMenu" class="screen active">
+    <!-- Title at top -->
+    <h1 id="gameTitle" style="position: absolute; top: 12svh;">CARROM<br>MASTER PVP</h1>
+
+    <!-- Buttons in middle (Flex container handles centering) -->
+    <button class="menu-btn" onclick="startPractice()">PRACTICE</button>
+    <button id="tournamentBtn" class="menu-btn">TOURNAMENT</button>
+
+    <!-- Settings below buttons -->
+    <div id="settings-panel" style="margin-top: 20px; border-radius: 999px; border-color: gold; padding: 10px 30px;">
+      <div class="toggle-wrap">MUSIC <input type="checkbox" id="musicToggle" checked onchange="toggleMusic()"></div>
+      <div class="toggle-wrap">SOUND <input type="checkbox" id="soundToggle" checked onchange="toggleSFX()"></div>
+    </div>
+
+    <!-- Profile & Redeem Icons stacked top-right -->
+    <div id="profileIcon"
+      style="position:fixed;top:14px;right:14px;width:42px;height:42px;background:#2196f3;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;z-index:1000;box-shadow:0 2px 8px rgba(0,0,0,0.5);">
+      👤
+    </div>
+    <div id="redeemIcon" title="Redeem Coins"
+      style="position:fixed;top:64px;right:14px;width:42px;height:42px;background:#f59e0b;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;z-index:1000;box-shadow:0 2px 8px rgba(0,0,0,0.5);">
+      🎁
+    </div>
+  </div>
+
+  <div id="gameContainer" class="screen">
+    <button id="spectateBackBtn" onclick="exitSpectate()"
+      style="display:none; position:absolute; top:20px; left:20px; z-index:100; padding:10px 20px; background:#e74c3c; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">Back
+      to Lobby</button>
+    <div id="spectateHUD"
+      style="display:none; position:absolute; top:70px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); padding:10px 20px; border-radius:10px; border:1px solid gold; color:white; text-align:center; z-index:100;">
+      <div id="spectateScore" style="font-size:14px; font-weight:bold; margin-bottom:5px;"></div>
+      <div id="spectateTimer" style="color:gold; font-size:18px; font-weight:bold;"></div>
+      <div id="spectatorCount" style="color:#00ffcc; font-size:12px; margin-top:5px;"></div>
+    </div>
+    <div id="ui">
+      <div class="stat" id="myStatBox">YOU: <span id="ps">0</span>/9</div>
+      <div id="center-ui">
+        <div id="match-timer">04:00</div>
+        <div id="turnLabel">PLAYER TURN</div>
+        <div id="timer-container"><span id="timer">15</span></div>
+      </div>
+      <div class="stat" id="oppStatBox">OPP: <span id="bs">0</span>/9</div>
+    </div>
+
+    <canvas id="c"></canvas>
+    <div id="status-msg"></div>
+
+    <div id="controls">
+      <input type="range" id="strikerSlider" min="0" max="100" value="50">
+      <div style="color:white;opacity:.8;font-size:10px;font-weight:bold;letter-spacing:.5px;">DIRECT HIT=UNDO • STRIKER
+        FOUL=PENALTY • FIRST TO 9 WINS</div>
+    </div>
+  </div>
+  <div id="overlay">
+    <h1 id="resTitle">GAME OVER</h1>
+    <p id="resMsg"></p>
+    <button class="menu-btn" onclick="returnToRoom()">BACK TO LOBBY</button>
+  </div>
+  <!-- Sync / Mutex Overlay -->
+  <div id="sync-overlay"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:10000; flex-direction:column; justify-content:center; align-items:center;">
+    <div
+      style="background:#2c3e50; color:white; padding:20px 40px; border-radius:10px; border:2px solid #34495e; box-shadow:0 10px 30px rgba(0,0,0,0.5); text-align:center;">
+      <div class="spinner-small" style="margin:0 auto 15px;"></div>
+      <div style="font-weight:bold; letter-spacing:1px; text-transform:uppercase;">Resolving Turn...</div>
+    </div>
+  </div>
+  <div id="spectatorEndPopup"
+    style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; flex-direction:column; justify-content:center; align-items:center;">
+    <div
+      style="background:#222; padding:30px; border-radius:15px; text-align:center; box-shadow:0 0 20px rgba(0,0,0,0.5); border:2px solid #555;">
+      <h2 style="color:#fff; margin-bottom:20px;">Match Ended</h2>
+      <button onclick="leaveSpectate()"
+        style="background:#e74c3c; color:white; border:none; padding:10px 20px; font-size:16px; border-radius:5px; cursor:pointer;">Back
+        to Lobby</button>
+    </div>
+  </div>
+  <div id="debug-panel"></div>
+  <div id="wait-spinner">⏳ Waiting for server…</div>
+
+  <audio id="bgm" loop>
+    <source src="background-music-azure-delicate-piano-for-creative-emotional-depth-cine_ztMw3laT.mp3"
+      type="audio/mpeg">
+  </audio>
+  <audio id="collisionSound">
+    <source src="InShot_20260218_135146113.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="strikerSound">
+    <source src="InShot_20260218_135246972.mp3" type="audio/mpeg">
+  </audio>
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+  <!-- Polished Auth/Profile Modal -->
+  <div id="authModal" class="auth-modal">
+    <div class="auth-box">
+
+      <h2 id="authTitle">Login</h2>
+
+      <input type="text" id="authName" placeholder="Name (Register only)" style="display:none;">
+      <input type="email" id="authEmail" placeholder="Email">
+      <input type="password" id="authPassword" placeholder="Password">
+
+      <button id="loginBtn">Login</button>
+      <button id="registerBtn">Register</button>
+
+      <button id="logoutBtn" style="display:none;">Logout</button>
+
+      <div id="profileInfo" style="display:none;"></div>
+
+      <button id="closeAuth">Close</button>
+
+    </div>
+  </div>
+
+  <!-- Redeem Modal (Clean Version) -->
+  <div id="redeemModal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Redeem Code</h3>
+      <input type="text" id="redeemInput" placeholder="Enter redeem code">
+      <button id="redeemSubmit">Redeem</button>
+      <button onclick="closeRedeem()">Close</button>
+    </div>
+  </div>
+
+  <!-- Tournament Popup (Selection Menu) -->
+  <div id="tournamentPopup" class="popup screen">
+    <div class="popup-content">
+      <h3 style="margin-top:0; color:white;">Tournament</h3>
+      <button onclick="openCreate()">Create Tournament</button>
+      <button onclick="openJoin()">Join Tournament</button>
+      <button onclick="openMyLobby()">My Lobby</button>
+      <button onclick="showScreen('mainMenu')"
+        style="background: transparent; border: 1px solid #374151; margin-top: 5px; color: #9ca3af;">Close</button>
+    </div>
+  </div>
+
+  <!-- Create Tournament Popup -->
+  <div id="createTournamentPopup" class="popup screen">
+    <div class="modal-content" style="width: calc(100vw - 48px); max-width: 400px; box-sizing: border-box;">
+      <h2 style="font-size:1.2rem; margin-top:0;">Create Tournament</h2>
+      <input type="text" id="tName" placeholder="Tournament Name">
+      <label>Start Time</label>
+      <input type="datetime-local" id="tStart">
+      <label>Duration (minutes)</label>
+      <select id="tDuration">
+        <option value="10">10 Minutes</option>
+        <option value="30">30 Minutes</option>
+        <option value="45">45 Minutes</option>
+        <option value="60">60 Minutes</option>
+      </select>
+      <label>Capacity (max 60)</label>
+      <input type="number" id="tCapacity" max="60" min="2" value="60">
+      <button id="createTournamentBtn" style="background: #2563eb; color: white; margin-top: 15px;">
+        Create (300 Coins)
+      </button>
+      <button onclick="showScreen('tournamentPopup')"
+        style="background: transparent; color: #9ca3af; border: 1px solid #374151; margin-top: 10px;">Back</button>
+    </div>
+  </div>
+
+  <!-- Join Tournament Popup -->
+  <div id="joinTournamentPopup" class="popup screen">
+    <div class="modal-content" style="width: calc(100vw - 48px); max-width: 400px; box-sizing: border-box;">
+      <h2 style="font-size:1.2rem; margin-top:0;">Join Tournament</h2>
+      <input type="text" id="searchTournament" placeholder="Search Tournament">
+      <div id="tournamentList"></div>
+      <button onclick="showScreen('tournamentPopup')"
+        style="background: transparent; color: #9ca3af; border: 1px solid #374151; margin-top: 15px;">Back</button>
+    </div>
+  </div>
+
+  <!-- Lobby Popup -->
+  <div id="lobbyPopup" class="popup screen">
+    <div class="modal-content" style="width: calc(100vw - 48px); max-width: 400px;">
+      <!-- Content dynamic via openLobbyUI -->
+      <div id="lobbyPlayers" style="max-height: 280px; overflow-y: auto; margin: 10px 0; padding-right: 4px;"></div>
+    </div>
+  </div>
+
+  <script>
+    // make both names available & point them to the canonical cleanup function
+    function leaveSpectate() {
+      if (typeof exitSpectate === 'function') return exitSpectate();
+      // fallback: manual cleanup
+      if (matchRoom) {
+        try { socket.emit('leave_spectate', { matchId: matchRoom }); } catch (e) { }
+      }
+      isSpectator = false;
+      matchRoom = null;
+      const hud = document.getElementById('spectateHud'); if (hud) hud.style.display = 'none';
+      const popup = document.getElementById('spectatorEndPopup'); if (popup) popup.style.display = 'none';
+      window.returnToRoom && window.returnToRoom();
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════
+    //  SOCKET
+    // ══════════════════════════════════════════════════════════════════
+    const socket = io("http://192.168.31.226:3000");
+    socket.on("connect", () => console.log("[SOCKET] connected:", socket.id));
+
+    function showScreen(id) {
+      document.querySelectorAll(".screen").forEach(el => {
+        el.classList.remove("active");
+      });
+
+      const target = document.getElementById(id);
+      if (target) {
+        target.classList.add("active");
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  MULTIPLAYER STATE
+    // ══════════════════════════════════════════════════════════════════
+    let isMultiplayer = false;
+    let isGameActive = false;
+    let myRole = null;   // "white" | "black"
+    let myTurn = false;
+    let isAuthoritative = false;
+    let opponentId = null;       // opponent socket ID
+    let opponentPlayerId = null; // opponent player ID (for tournament reporting)
+    let matchRoom = null;
+    let isSpectator = false;
+    let endTurnSent = false;
+    let mpScoreDelta = { white: 0, black: 0 };
+    let lastLiveEmit = 0;
+    const LIVE_HZ = 20;
+
+    // ══════════════════════════════════════════════════════════════════
+    //  TURN TIMER
+    // ══════════════════════════════════════════════════════════════════
+    let turnTime = 15;
+    let turnTimer = null;
+
+    function startTurnTimer() {
+      turnTime = 15;
+      timerEl.textContent = turnTime;
+      if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
+      turnTimer = setInterval(() => {
+        if (gameOver) { clearInterval(turnTimer); turnTimer = null; return; }
+        turnTime = Math.max(0, turnTime - 1);
+        timerEl.textContent = turnTime;
+        if (turnTime <= 0) {
+          clearInterval(turnTimer); turnTimer = null;
+          if (isMultiplayer && isAuthoritative) finalizeTurn();
+          else if (!isMultiplayer && turn === 'player') switchTurn();
+        }
+      }, 1000);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  LOBBY UI
+    // ══════════════════════════════════════════════════════════════════
+    let currentRoom = "", amReady = false;
+    function openTournamentPanel() { document.getElementById('roomPanel').style.display = 'block'; }
+    function closeTournamentPanel() { document.getElementById('roomPanel').style.display = 'none'; }
+    document.getElementById('closePanel').addEventListener('click', closeTournamentPanel);
+    document.getElementById('createBtn').addEventListener('click', () => {
+      const safe = document.getElementById('roomInput').value.trim().replace(/[^a-zA-Z0-9-_]/g, '').toLowerCase();
+      if (!safe) { alert('Use letters or numbers only'); return; }
+      socket.emit('createRoom', { roomName: safe }); currentRoom = safe;
+      document.getElementById('roomInfo').textContent = `Room: ${currentRoom} — waiting…`;
+    });
+    document.getElementById('joinBtn').addEventListener('click', () => {
+      const safe = document.getElementById('roomInput').value.trim().replace(/[^a-zA-Z0-9-_]/g, '').toLowerCase();
+      if (!safe) { alert('Use letters or numbers only'); return; }
+      socket.emit('joinRoom', { roomName: safe }); currentRoom = safe;
+      document.getElementById('roomInfo').textContent = `Room: ${currentRoom} — joining…`;
+    });
+    document.getElementById('leaveBtn').addEventListener('click', () => {
+      currentRoom = ''; document.getElementById('roomInfo').textContent = 'Room: —';
+      document.getElementById('leaveBtn').style.display = 'none';
+      document.getElementById('battleBtn').textContent = 'Battle'; amReady = false;
+    });
+    document.getElementById('battleBtn').addEventListener('click', () => {
+      if (!currentRoom) { alert('Join or Create a room first'); return; }
+      amReady = !amReady;
+      document.getElementById('battleBtn').textContent = amReady ? 'Searching… (click to cancel)' : 'Battle';
+      if (amReady) {
+        socket.emit('setReady', { roomName: currentRoom });
+        // set cancel helper
+        window._resetBattleBtn = function () {
+          amReady = false;
+          document.getElementById('battleBtn').textContent = 'Battle';
+        };
+      } else {
+        socket.emit('setReady', { roomName: currentRoom, cancel: true });
+        if (window._resetBattleBtn) { window._resetBattleBtn(); delete window._resetBattleBtn; }
+      }
+    });
+    socket.on('roomUpdate', (room) => {
+      if (!room || !room.players) return;
+      document.getElementById('roomInfo').textContent = `Room: ${currentRoom} — players:${room.players.length} ready:${(room.ready || []).length}`;
+      if (currentRoom) document.getElementById('leaveBtn').style.display = 'inline-block';
+    });
+    socket.on('roomError', ({ msg }) => alert('Room error: ' + msg));
+
+    // ══════════════════════════════════════════════════════════════════
+    //  PHYSICS ENGINE + CANVAS
+    // ══════════════════════════════════════════════════════════════════
+    const { Engine, Render, Runner, World, Bodies, Body, Vector, Events } = Matter;
+    const engine = Engine.create();
+    const runner = Runner.create();
+    engine.world.gravity.y = 0;
+
+    const canvas = document.getElementById('c');
+    const W = Math.min(window.innerWidth * 0.98, window.innerHeight * 0.88);
+    canvas.width = canvas.height = W;
+    const render = Render.create({ canvas, engine, options: { width: W, height: W, wireframes: false, background: 'transparent' } });
+
+    // ══════════════════════════════════════════════════════════════════
+    //  AUDIO
+    // ══════════════════════════════════════════════════════════════════
+    let musicEnabled = true, sfxEnabled = true, musicStarted = false;
+    const bgm = document.getElementById('bgm');
+    const collisionSound = document.getElementById('collisionSound');
+    const strikerSound = document.getElementById('strikerSound');
+    function toggleMusic() { musicEnabled = document.getElementById('musicToggle').checked; if (musicStarted) { if (musicEnabled) bgm.play(); else bgm.pause(); } }
+    function toggleSFX() { sfxEnabled = document.getElementById('soundToggle').checked; }
+    function initAudio() {
+      if (!musicStarted) {
+        bgm.volume = 0.4; if (musicEnabled) bgm.play().catch(() => { });
+        [collisionSound, strikerSound].forEach(s => s.play().then(() => { s.pause(); s.currentTime = 0; }).catch(() => { }));
+        musicStarted = true;
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  GAME CONSTANTS
+    // ══════════════════════════════════════════════════════════════════
+    const board = W;
+    const margin = board * 0.145;
+    const coinR = board * 0.033;
+    const strikerR = coinR * 1.35;
+    const pocketR = strikerR * 1.15;
+    const pOffset = pocketR * 0.35;
+    const WIN_SCORE = 9;
+
+    // ══════════════════════════════════════════════════════════════════
+    //  GAME STATE
+    // ══════════════════════════════════════════════════════════════════
+    let pocketQueue = [];            // temporary list of physics bodies queued for pocket processing
+    let lastShotTime = 0;           // timestamp when shot was fired
+    let coins = [], pockets = [], walls = [], striker = null;
+    let currentTurnSeq = 0;          // latest turn sequence from server
+    let waitingForServer = false;    // block input while resolving
+    let endTurnWatchdog = null;      // timer for fallback resync
+    let turn = 'player', shot = false, pScore = 0, bScore = 0, gameOver = false;
+    let isAiming = false, aimPower = 0, aimDir = null;
+    let queenBody = null, queenPocketedBy = null, waitingForCover = false;
+    let queenPocketedThisShot = false, ownCoinPocketedThisShot = false;
+    let coinPocketedThisTurn = false;
+    let wallHitFirst = false, zoneFoulTriggered = false, strikerPocketed = false, isFired = false;
+    let coinStateBeforeShot = [], scoreBeforeShot = { p: 0, b: 0 }, coinsPocketedThisShot = [];
+    let matchTime = 240, matchInterval = null;
+
+    // UI refs
+    // PATCH A1: let so we can rebind after initGame() replaces innerHTML
+    let psEl = document.getElementById('ps');
+    let bsEl = document.getElementById('bs');
+    const turnEl = document.getElementById('turnLabel');
+    const timerEl = document.getElementById('timer');
+    const matchEl = document.getElementById('match-timer');
+    const slider = document.getElementById('strikerSlider');
+    const statusMsg = document.getElementById('status-msg');
+    const spinner = document.getElementById('wait-spinner');
+    const dbgPanel = document.getElementById('debug-panel');
+
+    function isLocalTurn() { return isMultiplayer ? (myTurn && !shot && isAuthoritative && !waitingForServer) : (turn === 'player'); }
+    function showSpinner(v) { spinner.style.display = v ? 'flex' : 'none'; }
+    function showFlashMsg(txt) { statusMsg.textContent = txt; statusMsg.style.display = 'block'; setTimeout(() => statusMsg.style.display = 'none', 2500); }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  POINTER COORDINATE HELPER
+    //  Maps screen pointer (possibly on rotated canvas) → canonical physics coords
+    // ══════════════════════════════════════════════════════════════════
+    function toCanonicalPointer(e) {
+      const rect = canvas.getBoundingClientRect();
+      const rawX = (e.clientX !== undefined) ? e.clientX - rect.left
+        : (e.touches && e.touches[0]) ? e.touches[0].clientX - rect.left : e.offsetX;
+      const rawY = (e.clientY !== undefined) ? e.clientY - rect.top
+        : (e.touches && e.touches[0]) ? e.touches[0].clientY - rect.top : e.offsetY;
+      // scale from display pixels to canvas pixels
+      const cx = (rawX / rect.width) * canvas.width;
+      const cy = (rawY / rect.height) * canvas.height;
+      // black role: canvas rotated 180° → mirror to canonical
+      if (isMultiplayer && myRole === 'black') {
+        return { cx: canvas.width - cx, cy: canvas.height - cy };
+      }
+      return { cx, cy };
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  STATIC BODIES
+    // ══════════════════════════════════════════════════════════════════
+    walls = [
+      Bodies.rectangle(board / 2, -10, board, 20, { isStatic: true, label: 'wall' }),
+      Bodies.rectangle(board / 2, board + 10, board, 20, { isStatic: true, label: 'wall' }),
+      Bodies.rectangle(-10, board / 2, 20, board, { isStatic: true, label: 'wall' }),
+      Bodies.rectangle(board + 10, board / 2, 20, board, { isStatic: true, label: 'wall' })
+    ];
+    World.add(engine.world, walls);
+    pockets = [
+      Bodies.circle(pOffset, pOffset, pocketR, { isStatic: true, isSensor: true }),
+      Bodies.circle(board - pOffset, pOffset, pocketR, { isStatic: true, isSensor: true }),
+      Bodies.circle(pOffset, board - pOffset, pocketR, { isStatic: true, isSensor: true }),
+      Bodies.circle(board - pOffset, board - pOffset, pocketR, { isStatic: true, isSensor: true })
+    ];
+    World.add(engine.world, pockets);
+
+    // ══════════════════════════════════════════════════════════════════
+    //  OBJECT CREATION
+    // ══════════════════════════════════════════════════════════════════
+    function createCoin(label, x, y) {
+      const c = Bodies.circle(x, y, coinR, { label, restitution: 0.5, frictionAir: 0.055 });
+      if (label === 'queen') queenBody = c;
+      World.add(engine.world, c);
+      coins.push(c);
+      return c;
+    }
+
+    function initGame() {
+      coins.forEach(c => World.remove(engine.world, c));
+      coins = []; queenBody = null;
+
+      const cx = board / 2, cy = board / 2;
+      createCoin('queen', cx, cy);
+      for (let i = 0; i < 6; i++) {
+        const ang = i * (Math.PI / 3);
+        createCoin(i % 2 === 0 ? 'white' : 'black', cx + Math.cos(ang) * coinR * 2.1, cy + Math.sin(ang) * coinR * 2.1);
+      }
+      for (let i = 0; i < 12; i++) {
+        const ang = i * (Math.PI / 6) + (Math.PI / 6);
+        createCoin(i % 4 < 2 ? 'white' : 'black', cx + Math.cos(ang) * coinR * 4.2, cy + Math.sin(ang) * coinR * 4.2);
+      }
+
+      pScore = 0; bScore = 0; gameOver = false;
+      // Update stat box labels
+      const psLive = document.getElementById('ps');
+      const bsLive = document.getElementById('bs');
+      if (psLive) psLive.textContent = '0';
+      if (bsLive) bsLive.textContent = '0';
+
+      if (isMultiplayer) {
+        document.getElementById('myStatBox').innerHTML = `YOU (<span style="color:${myRole === 'white' ? '#eee' : '#888'}">${myRole.toUpperCase()}</span>): <span id="ps">0</span>/9`;
+        document.getElementById('oppStatBox').innerHTML = `OPP: <span id="bs">0</span>/9`;
+        // PATCH A2: rebind psEl/bsEl to the newly created DOM nodes
+        psEl = document.getElementById('ps');
+        bsEl = document.getElementById('bs');
+      }
+
+      spawnStriker(null); // pass null → use current turn context
+      startMatchTimer();
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  SPAWN STRIKER
+    //  forRole: "white"|"black"|null
+    //    null → derive from current context (myRole if myTurn, else opponent role)
+    //  Key: white role always at board*0.855 (canonical bottom);
+    //       black role always at board*0.145 (canonical top).
+    //  The black player sees themselves at bottom because the canvas is rotated 180°.
+    // ══════════════════════════════════════════════════════════════════
+    function spawnStriker(forRole) {
+      if (striker) World.remove(engine.world, striker);
+
+      let role;
+      if (forRole) {
+        role = forRole;
+      } else if (isMultiplayer) {
+        // my turn → spawn for my role; opponent's turn → spawn for opponent role
+        role = myTurn ? myRole : (myRole === 'white' ? 'black' : 'white');
+      } else {
+        role = (turn === 'player') ? 'white' : 'black';
+      }
+
+      // canonical Y: white = board bottom (0.855), black = board top (0.145)
+      const spawnY = (role === 'white') ? board * 0.855 : board * 0.145;
+
+      striker = Bodies.circle(board / 2, spawnY, strikerR, {
+        label: 'striker', restitution: 0.4, frictionAir: 0.045, isSensor: true, render: { visible: true }
+      });
+      Body.setMass(striker, 4);
+      World.add(engine.world, striker);
+
+      // Enable slider only for the local controlling player
+      const iMyControl = isMultiplayer ? (myTurn && myRole === role) : (turn === 'player' && role === 'white');
+      slider.disabled = !iMyControl;
+      slider.value = 50;
+
+      // reset per-shot state
+      isFired = false; shot = false;
+      wallHitFirst = false; zoneFoulTriggered = false; strikerPocketed = false;
+      queenPocketedThisShot = false; ownCoinPocketedThisShot = false;
+      coinPocketedThisTurn = false; coinsPocketedThisShot = [];
+      endTurnSent = false; mpScoreDelta = { white: 0, black: 0 };
+
+      // PATCH A4: if this client is now authoritative (shooter), convert render-only static coins to dynamic
+      if (isMultiplayer && isAuthoritative) {
+        coins.forEach(c => {
+          if (c.isStatic) {
+            Body.setStatic(c, false);
+            c.isSensor = false;
+            Body.setVelocity(c, { x: 0, y: 0 });
+            Body.setAngularVelocity(c, 0);
+          }
+        });
+        if (striker && striker.isStatic) {
+          Body.setStatic(striker, false);
+          striker.isSensor = false;
+        }
+      }
+
+      // timers: only start if the local client controls this turn
+      if (isMultiplayer) {
+        if (myTurn) { startTurnTimer(); }
+        else { if (turnTimer) { clearInterval(turnTimer); turnTimer = null; } }
+      } else {
+        if (turn === 'player') { startTurnTimer(); }
+        else { if (turnTimer) { clearInterval(turnTimer); turnTimer = null; } }
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  GAME LOGIC
+    // ══════════════════════════════════════════════════════════════════
+    function checkWinCondition() {
+      // In multiplayer, server is authoritative — do nothing here
+      if (isMultiplayer) return;
+      if (pScore >= WIN_SCORE) endGame("YOU WIN!", "Target Score Reached!");
+      else if (bScore >= WIN_SCORE) endGame("BOT WINS!", "Target Score Reached!");
+    }
+
+    function returnQueenToCenter() {
+      if (isMultiplayer) return; // server is authoritative
+      // Remove existing queen bodies to avoid duplicates, then spawn center queen
+      removeLocalQueen();
+      createCoin('queen', board / 2, board / 2);
+      broadcastMsg("QUEEN RETURNED!");
+      waitingForCover = false;
+      queenPocketedBy = null;
+      queenPocketedThisShot = false;
+    }
+
+    // removeLocalQueen: remove queen physics body + clear reference (no duplicate spawns)
+    function removeLocalQueen() {
+      if (queenBody) {
+        World.remove(engine.world, queenBody);
+        coins = coins.filter(c => c !== queenBody);
+        queenBody = null;
+      }
+      // Also sweep coins array for any orphaned queen bodies (extra safety)
+      const orphans = coins.filter(c => c.label === 'queen');
+      orphans.forEach(c => { World.remove(engine.world, c); });
+      coins = coins.filter(c => c.label !== 'queen');
+    }
+
+    // returnPenaltyCoin: in multiplayer uses shooter's role; in practice uses turn
+    function returnPenaltyCoin() {
+      const label = isMultiplayer ? myRole : (turn === 'player' ? 'white' : 'black');
+      createCoin(label, board / 2, board / 2);
+    }
+
+    function restoreBoard() {
+      pScore = scoreBeforeShot.p; bScore = scoreBeforeShot.b;
+      if (!isMultiplayer) { psEl.textContent = pScore; bsEl.textContent = bScore; }
+      coins.forEach(c => World.remove(engine.world, c)); coins = [];
+      coinStateBeforeShot.forEach(s => createCoin(s.label, s.x, s.y));
+      if (queenPocketedThisShot) { queenPocketedBy = null; waitingForCover = false; }
+      // also reset mpScoreDelta since we restored
+      mpScoreDelta = { white: 0, black: 0 };
+    }
+
+    function saveCoinState() {
+      scoreBeforeShot.p = pScore; scoreBeforeShot.b = bScore;
+      coinStateBeforeShot = coins.map(c => ({ label: c.label, x: c.position.x, y: c.position.y }));
+    }
+
+    function handleCoinPocket(coin) {
+      // Defensive: coin may already be removed by another callback
+      if (!coin || !coins.includes(coin)) return;
+      try {
+        // record only label (objects may be mutated later)
+        coinsPocketedThisShot.push({ label: coin.label || 'unknown' });
+
+        if (coin.label === 'queen') {
+          queenPocketedThisShot = true;
+          broadcastMsg("QUEEN POCKETED! COVER IT.");
+        } else {
+          const currentRole = isMultiplayer ? myRole : (turn === 'player' ? 'white' : 'black');
+          const isOwn = (currentRole === coin.label);
+          if (isOwn) ownCoinPocketedThisShot = true;
+          if (isMultiplayer && isAuthoritative) {
+            mpScoreDelta[coin.label] = (mpScoreDelta[coin.label] || 0) + 1;
+          } else if (!isMultiplayer) {
+            if (coin.label === 'white') pScore++; else bScore++;
+            psEl.textContent = pScore; bsEl.textContent = bScore;
+          }
+        }
+
+        // Remove body with try/catch to avoid engine / double-remove errors
+        try { World.remove(engine.world, coin); } catch (e) { /* ignore */ }
+        coins = coins.filter(c => c !== coin);
+        coinPocketedThisTurn = true;
+      } catch (err) {
+        console.error('[handleCoinPocket] unexpected error', err);
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  PHYSICS EVENTS
+    // ══════════════════════════════════════════════════════════════════
+    Events.on(engine, 'collisionStart', e => {
+      e.pairs.forEach(p => {
+        const bodyA = p.bodyA, bodyB = p.bodyB, bodies = [bodyA, bodyB];
+        const coin = bodies.find(b => coins.includes(b));
+        const pocket = bodies.find(b => pockets.includes(b));
+        const wall = bodies.find(b => walls.includes(b));
+        const isCoinA = ['white', 'black', 'queen'].includes(bodyA.label);
+        const isCoinB = ['white', 'black', 'queen'].includes(bodyB.label);
+        const isStk = bodies.includes(striker);
+
+        if (sfxEnabled && (isStk || (isCoinA && isCoinB))) {
+          if (bodyA.speed > 1 || bodyB.speed > 1) {
+            collisionSound.currentTime = 0;
+            collisionSound.volume = Math.min(0.8, (bodyA.speed + bodyB.speed) / 20);
+            collisionSound.play().catch(() => { });
+          }
+        }
+        if (bodies.includes(striker) && wall) wallHitFirst = true;
+
+        // foul zone detection: striker hits coin directly from striker lane
+        if (isFired && bodies.includes(striker) && coin && !wallHitFirst && !zoneFoulTriggered && !strikerPocketed) {
+          const shooterRole = isMultiplayer ? myRole : (turn === 'player' ? 'white' : 'black');
+          const zoneY = (shooterRole === 'white') ? board * 0.855 : board * 0.145;
+          if (Math.abs(coin.position.y - zoneY) < strikerR + 10) zoneFoulTriggered = true;
+        }
+
+        if (coin && pocket) {
+          if (!pocketQueue.includes(coin)) pocketQueue.push(coin);
+        }
+        if (bodies.includes(striker) && pocket) { strikerPocketed = true; striker.render.opacity = 0.5; }
+      });
+    });
+
+    Events.on(engine, 'afterUpdate', () => {
+      if (!isGameActive || !shot || gameOver) return;
+      const moving = coins.some(c => c.speed > 0.15) || (striker && striker.speed > 0.15);
+
+      if (shot) lastShotTime = lastShotTime || Date.now();
+
+      const settledEnough = !moving || (Date.now() - lastShotTime) > 500; // 500ms safety window
+      if (pocketQueue.length && settledEnough) {
+        // copy & clear queue to avoid reentrancy
+        const queued = pocketQueue.slice(); pocketQueue.length = 0; lastShotTime = 0;
+        queued.forEach(coin => {
+          // only process if the coin is still present in our coins[] (defensive)
+          try {
+            if (coins.includes(coin)) handleCoinPocket(coin);
+          } catch (err) {
+            console.warn('[POCKET_QUEUE] error while handling queued pocket', err);
+          }
+        });
+      }
+
+      // live stream (only authoritative shooter, throttled)
+      if (isMultiplayer && isAuthoritative && matchRoom && !isSpectator && !waitingForServer) {
+        const now = Date.now();
+        if (now - lastLiveEmit >= 1000 / LIVE_HZ) {
+          lastLiveEmit = now;
+          // EMIT normalized coordinates (0..1) so opponents with different canvas sizes render correctly
+          socket.emit('liveUpdate', {
+            matchRoom,
+            state: {
+              coins: coins.map(c => ({ label: c.label, x: c.position.x / board, y: c.position.y / board })),
+              striker: striker ? { x: striker.position.x / board, y: striker.position.y / board } : null
+            }
+          });
+        }
+      }
+
+      if (!moving) finalizeTurn();
+    });
+
+    // ══════════════════════════════════════════════════════════════════
+    //  FINALIZE TURN
+    // ══════════════════════════════════════════════════════════════════
+    function finalizeTurn() {
+      if (isMultiplayer && endTurnSent) return; // single-fire guard
+      shot = false; isFired = false;
+
+      // Get the current score from the UI to ensure accurate checks
+      const myActualScore = isMultiplayer ? (parseInt(psEl.textContent) || 0) : pScore;
+
+      // ─ FOUL: DIRECT HIT ─────────────────────────────────────────
+      if (zoneFoulTriggered) {
+        broadcastMsg("DIRECT HIT! UNDO");
+        restoreBoard(); // coins restored, mpScoreDelta reset to 0
+        if (!isMultiplayer) {
+          if (queenPocketedThisShot || waitingForCover) returnQueenToCenter();
+          if (turn === 'player') { if (pScore > 0) { pScore--; returnPenaltyCoin(); } }
+          else { if (bScore > 0) { bScore--; returnPenaltyCoin(); } }
+          psEl.textContent = pScore; bsEl.textContent = bScore;
+          if (striker) { World.remove(engine.world, striker); striker = null; }
+          switchTurn(); return;
+        } else {
+          // PVP: fall through to _sendEndTurn(false) below
+          if (striker) { World.remove(engine.world, striker); striker = null; }
+        }
+      }
+
+      // ─ FOUL: STRIKER POCKET ──────────────────────────────────────
+      if (strikerPocketed) {
+        broadcastMsg("STRIKER FOUL!");
+        if (!isMultiplayer) {
+          if (queenPocketedThisShot || waitingForCover) returnQueenToCenter();
+          if (turn === 'player') { if (pScore > 0) { pScore--; returnPenaltyCoin(); } }
+          else { if (bScore > 0) { bScore--; returnPenaltyCoin(); } }
+          psEl.textContent = pScore; bsEl.textContent = bScore;
+          if (striker) { World.remove(engine.world, striker); striker = null; }
+          switchTurn(); return;
+        } else {
+          // PVP: fall through to _sendEndTurn(false) below
+          if (striker) { World.remove(engine.world, striker); striker = null; }
+        }
+      }
+
+      // ─ QUEEN LOGIC (Practice only or non-foul MP) ─────────────
+      if (queenPocketedThisShot) {
+        if (ownCoinPocketedThisShot) {
+          if (!isMultiplayer) { if (turn === 'player') pScore += 3; else bScore += 3; }
+          else { mpScoreDelta[myRole] = (mpScoreDelta[myRole] || 0) + 3; }
+          broadcastMsg("QUEEN COVERED! +3");
+          waitingForCover = false; queenPocketedBy = null;
+        } else {
+          waitingForCover = true; queenPocketedBy = isMultiplayer ? myRole : turn;
+        }
+      } else if (waitingForCover) {
+        if (ownCoinPocketedThisShot) {
+          if (!isMultiplayer) { if (turn === 'player') pScore += 3; else bScore += 3; }
+          else { mpScoreDelta[myRole] = (mpScoreDelta[myRole] || 0) + 3; }
+          broadcastMsg("QUEEN COVERED! +3");
+        } else {
+          if (!isMultiplayer) returnQueenToCenter();
+          // Multiplayer server handles queen return on foul or failure to cover
+        }
+        waitingForCover = false; queenPocketedBy = null;
+      }
+
+      if (!isMultiplayer) {
+        psEl.textContent = pScore; bsEl.textContent = bScore;
+        checkWinCondition();
+        if (!gameOver) {
+          if (coinPocketedThisTurn || queenPocketedThisShot) {
+            spawnStriker(null);
+            if (turn === 'bot') setTimeout(botMove, 800);
+          } else {
+            switchTurn();
+          }
+        }
+        return;
+      }
+
+      // MULTIPLAYER FINALIZATION
+      const keepTurn = (coinPocketedThisTurn || queenPocketedThisShot) && !zoneFoulTriggered && !strikerPocketed;
+      _sendEndTurn(keepTurn);
+    }
+
+    // ── PATCH C4: clearWaitingOverlay helper ──────────────────────────────
+    function clearWaitingOverlay() {
+      waitingForServer = false;
+      if (endTurnWatchdog) { clearTimeout(endTurnWatchdog); endTurnWatchdog = null; }
+      clearTimeout(window._resolveOverlayTimer);
+      const overlay = document.getElementById('sync-overlay');
+      if (overlay) overlay.style.display = 'none';
+      showSpinner(false);
+    }
+
+    // ── PATCH C3 (Fortified Reset) ──────────────────────────────────
+    function resetClientMatchState() {
+      console.log('[CLIENT] resetting match state flags/timers');
+      isAuthoritative = false;
+      waitingForServer = false;
+      endTurnSent = false;
+      myTurn = false;
+      isAiming = false;
+
+      clearWaitingOverlay();
+      resetAimUI();
+
+      if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
+      if (endTurnWatchdog) { clearTimeout(endTurnWatchdog); endTurnWatchdog = null; }
+      clearTimeout(window._resolveOverlayTimer);
+    }
+
+    // ── PATCH C1: emit endTurn with playerId from localStorage ────────────
+    function _sendEndTurn(keepTurnNotUsed) {
+      if (isSpectator) return;
+      if (endTurnSent) return; // Prevent double sends
+
+      // PATCH C4: delayed show of resolving overlay
+      waitingForServer = true;
+      clearTimeout(window._resolveOverlayTimer);
+      window._resolveOverlayTimer = setTimeout(() => {
+        if (waitingForServer) {
+          const overlay = document.getElementById('sync-overlay');
+          if (overlay) overlay.style.display = 'flex';
+        }
+      }, 500);
+
+      if (endTurnWatchdog) clearTimeout(endTurnWatchdog);
+      endTurnWatchdog = setTimeout(() => {
+        if (!waitingForServer) return;
+        console.warn('[CLIENT] endTurn watchdog fired; requesting board sync');
+        socket.emit('requestYourTurn', { matchRoom });
+        socket.emit('requestBoardState', { matchRoom }); // ask server to re-send authoritative boardState
+      }, 3500);
+
+      // Final board snapshot (normalized 0..1 scale)
+      const finalBoard = coins.map(c => ({ label: (c.label || '').toString().toLowerCase(), x: c.position.x / board, y: c.position.y / board }));
+
+      const _savedUser = JSON.parse(localStorage.getItem('player') || '{}');
+      const _myPlayerId = (_savedUser && _savedUser.playerId) ? _savedUser.playerId : myPlayerId;
+
+      // CLIENT: build authoritative flags before socket.emit('endTurn', ...)
+      const normalizedCoinsPocketed = (coinsPocketedThisShot || []).map(c => {
+        const lbl = (c && (c.label || '')).toString().toLowerCase();
+        return { label: lbl, raw: c };
+      });
+
+      // helper booleans (normalize roles to lower case too)
+      const myRoleLc = (myRole || '').toString().toLowerCase();
+      const shooterPocketedOwnCoin = normalizedCoinsPocketed.some(c => c.label === myRoleLc);
+
+      // queenPocketedThisShot should already be tracked, but normalize it:
+      const queenPocketedFlag = !!queenPocketedThisShot;
+
+      // send two complementary flags:
+      //  - coverThisShot: (waiting for cover) AND you pocketed your own coin this shot
+      //  - queenCoveredThisShot: queen was pocketed this shot AND own coin was pocketed in same shot
+      const flags = {
+        strikerPocketed: !!strikerPocketed,
+        zoneFoul: !!zoneFoulTriggered,
+        queenPocketedThisShot: !!queenPocketedFlag,
+        coinsPocketedThisShot: normalizedCoinsPocketed.map(c => c.label),
+        coverThisShot: !!(waitingForCover && shooterPocketedOwnCoin),
+        queenCoveredThisShot: !!(queenPocketedFlag && shooterPocketedOwnCoin)
+      };
+
+      socket.emit('endTurn', {
+        matchRoom,
+        playerId: _myPlayerId,
+        boardState: finalBoard,
+        flags
+      });
+
+      endTurnSent = true;
+      isAuthoritative = false;
+      mpScoreDelta = { white: 0, black: 0 };
+      showSpinner(true);
+      turnEl.textContent = 'OPPONENT TURN';
+      if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
+      console.log('[CLIENT] endTurn sent, flags:', JSON.stringify(flags));
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  SWITCH TURN (practice only)
+    // ══════════════════════════════════════════════════════════════════
+    function switchTurn() {
+      turn = (turn === 'player') ? 'bot' : 'player';
+      turnEl.textContent = turn.toUpperCase() + ' TURN';
+      spawnStriker(null);
+      if (turn === 'bot') setTimeout(botMove, 800);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  MATCH TIMER (both practice and mp — server is authoritative in mp
+    //  but we still show countdown visually)
+    // ══════════════════════════════════════════════════════════════════
+    // Server-synced match timer: accepts initial seconds from server
+    function startMatchTimerWithSeconds(sec) {
+      if (matchInterval) { clearInterval(matchInterval); matchInterval = null; }
+      matchTime = (typeof sec === 'number' && sec >= 0) ? sec : 240;
+      const m0 = Math.floor(matchTime / 60), s0 = matchTime % 60;
+      matchEl.textContent = `${String(m0).padStart(2, '0')}:${String(s0).padStart(2, '0')}`;
+      matchInterval = setInterval(() => {
+        if (gameOver) { clearInterval(matchInterval); matchInterval = null; return; }
+        matchTime = Math.max(0, matchTime - 1);
+        const m = Math.floor(matchTime / 60), s = matchTime % 60;
+        matchEl.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        if (matchTime <= 0) {
+          clearInterval(matchInterval); matchInterval = null;
+          if (!isMultiplayer) {
+            // practice: decide winner locally
+            if (pScore > bScore) endGame("TIME UP", "YOU WIN BY POINTS!");
+            else if (bScore > pScore) endGame("TIME UP", "BOT WINS BY POINTS!");
+            else endGame("TIME UP", "IT'S A DRAW!");
+          }
+          // multiplayer: server already emits gameEnd; we just let the overlay appear from gameEnd handler
+        }
+      }, 1000);
+    }
+
+    // Keep backward-compat alias (practice mode calls this)
+    function startMatchTimer() { startMatchTimerWithSeconds(240); }
+
+    function endGame(title, msg) {
+      setTimeout(() => {
+        gameOver = true;
+        isGameActive = false; // ✅ Deactivate game loop
+        if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
+        if (matchInterval) { clearInterval(matchInterval); matchInterval = null; }
+        showSpinner(false);
+        const syncOverlay = document.getElementById('sync-overlay');
+        if (syncOverlay) syncOverlay.style.display = 'none';
+
+        document.getElementById('resTitle').textContent = title;
+        document.getElementById('resMsg').textContent = msg;
+        document.getElementById('overlay').style.display = 'flex';
+      }, 2000);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  START PRACTICE
+    // ══════════════════════════════════════════════════════════════════
+    function startPractice() {
+      isMultiplayer = false;
+      isGameActive = true;
+      showScreen("gameContainer");
+
+      myRole = null; myTurn = false;
+      document.getElementById('ui').style.display = 'flex';
+      document.getElementById('controls').style.display = 'flex';
+      document.getElementById('myStatBox').innerHTML = 'YOU: <span id="ps">0</span>/9';
+      document.getElementById('oppStatBox').innerHTML = 'BOT: <span id="bs">0</span>/9';
+      // rebind psEl/bsEl after replacing innerHTML
+      psEl = document.getElementById('ps');
+      bsEl = document.getElementById('bs');
+      turn = 'player';
+      initAudio(); initGame();
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  SOCKET: REDEEM RESULT
+    // ══════════════════════════════════════════════════════════════════
+    socket.on("redeemResult", (data) => {
+      alert(data.message);
+      if (data.success) {
+        if (currentUser) {
+          currentUser.coins = data.newBalance;
+          localStorage.setItem("player", JSON.stringify(currentUser));
+          showProfile(currentUser);
+        }
+      }
+    });
+
+    // Force cleanup and reset for player session
+    function startMatch(data) {
+      if (isSpectator) exitSpectate();
+      resetAimUI();
+      // ... existing match start logic ...
+    }
+
+    function resetAimUI() {
+      // position slider to default center
+      slider.value = 50;
+      // reset any local aim variables
+      isAiming = false;
+      aimPower = 0;
+      aimDir = { x: 0, y: -1 };
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  SOCKET: MATCH STARTED / JOINED
+    // ══════════════════════════════════════════════════════════════════
+    function startPvPGame(data) {
+      console.log('[startPvPGame]', data);
+      window.isSearchingBattle = false;
+
+      // Reset server sequence counter when a new match starts
+      currentTurnSeq = 0;
+
+      if (isSpectator) {
+        window.exitSpectate({ fromMatchStart: true }); // force full cleanup without navigating to lobby
+      }
+      resetAimUI(); // Reset aim UI at the start of a new game
+
+      isMultiplayer = true;
+      isGameActive = true;
+      matchRoom = data.matchRoom || data.matchId;
+      opponentId = data.opponentId;
+      opponentPlayerId = data.opponentPlayerId || null;
+      currentTournamentMatchId = data.tournamentId || null;
+      myRole = data.role;
+      myTurn = !!data.turn;
+      isAuthoritative = myTurn;
+      turn = myTurn ? 'player' : 'bot';
+
+      // Rotate canvas for black player
+      canvas.style.transform = (myRole === 'black') ? 'rotate(180deg)' : '';
+
+      turnEl.textContent = myTurn ? 'YOUR TURN' : 'OPPONENT TURN';
+
+      document.getElementById('ui').style.display = 'flex';
+      document.getElementById('controls').style.display = 'flex';
+      initAudio(); initGame();
+
+      // Start match timer from server-provided endTime (fixes timer desync)
+      if (data.endTime) {
+        const remaining = Math.max(0, Math.floor((data.endTime - Date.now()) / 1000));
+        startMatchTimerWithSeconds(remaining);
+        console.log('[CLIENT] matchStart: server endTime synced, remaining=' + remaining + 's');
+      } else {
+        startMatchTimerWithSeconds(240);
+      }
+    }
+
+    // Support both events for backward/cross compatibility
+    socket.on("matchStart", startPvPGame);
+    socket.on("tournament_match_found", (data) => {
+      console.log("Tournament Match found:", data);
+      showScreen("gameContainer");
+      startPvPGame(data);
+    });
+
+    socket.on("opponent_disconnected", () => {
+      if (!isGameActive) return;
+      broadcastMsg("OPPONENT DISCONNECTED");
+      endGame("WIN BY DISCONNECT", "Your opponent left the match.");
+    });
+
+    socket.on('flashMsg', ({ msg }) => {
+      showFlashMsg(msg);
+    });
+
+    const resetBoard = () => initGame();
+
+    // ══════════════════════════════════════════════════════════════════
+    //  SOCKET: LIVE UPDATE (opponent renders; shooter ignores)
+    // ══════════════════════════════════════════════════════════════════
+    // PATCH A3: opponent renders exact shooter positions USING NORMALIZED (0..1) COORDINATES
+    socket.on('liveUpdate', ({ state, matchId: evtMatchId }) => {
+      if (!state || isAuthoritative) return;
+      if (evtMatchId && evtMatchId !== matchRoom) return; // stale event guard
+
+      // Scale incoming normalized coordinates to local board size
+      coins.forEach(c => World.remove(engine.world, c));
+      coins = [];
+      if (Array.isArray(state.coins)) {
+        state.coins.forEach(s => {
+          const px = (typeof s.x === 'number') ? (s.x * board) : 0;
+          const py = (typeof s.y === 'number') ? (s.y * board) : 0;
+          const c = createCoin(s.label, px, py);
+          Body.setStatic(c, true);
+          c.isSensor = true;
+        });
+      }
+
+      // striker: scale to local board
+      if (state.striker) {
+        const sx = (typeof state.striker.x === 'number') ? (state.striker.x * board) : null;
+        const sy = (typeof state.striker.y === 'number') ? (state.striker.y * board) : null;
+        if (sx !== null && sy !== null) {
+          if (!striker) {
+            striker = Bodies.circle(sx, sy, strikerR,
+              { label: 'striker', isSensor: true, render: { visible: true } });
+            Body.setStatic(striker, true);
+            World.add(engine.world, striker);
+          } else {
+            Body.setPosition(striker, { x: sx, y: sy });
+            Body.setVelocity(striker, { x: 0, y: 0 });
+            if (!striker.isStatic) Body.setStatic(striker, true);
+          }
+        }
+      }
+    });
+
+    // ══════════════════════════════════════════════════════════════════
+    //  SOCKET: BOARD STATE (authoritative final board + scores)
+    // ══════════════════════════════════════════════════════════════════
+    // PATCH A6: static coins until yourTurn; safe psEl/bsEl rebind for scores
+    socket.on('boardState', (data) => {
+      const { boardState, scores, nextShooterRole, nextShooterPlayerId, matchId: evtMatchId, seq } = data;
+      if (evtMatchId && evtMatchId !== matchRoom) return;
+
+      if (seq && seq <= currentTurnSeq) {
+        console.warn('[CLIENT] Ignoring stale boardState seq', seq, 'currentTurnSeq', currentTurnSeq);
+        return;
+      }
+      if (seq) currentTurnSeq = seq;
+
+      // PATCH C2/C4: use helper to clear overlay
+      clearWaitingOverlay();
+
+      if (scores) {
+        // safety: ensure both roles exist
+        scores.white = scores.white || 0;
+        scores.black = scores.black || 0;
+        // update DOM using safe bindings
+        if (psEl) psEl.textContent = scores[myRole] || 0;
+        if (bsEl) bsEl.textContent = scores[(myRole === 'white' ? 'black' : 'white')] || 0;
+      }
+
+      // Update scores using server authoritative values
+      // (score block executed below; just clear per-shot flags here)
+      queenPocketedThisShot = false;
+      mpScoreDelta = { white: 0, black: 0 };
+      coinPocketedThisTurn = false;
+      coinsPocketedThisShot = [];
+
+      // Replace coins as static render-only bodies
+      coins.forEach(c => World.remove(engine.world, c)); coins = [];
+      queenBody = null;
+      if (Array.isArray(boardState)) {
+        boardState.forEach(s => {
+          const px = (typeof s.x === 'number') ? (s.x * board) : board / 2;
+          const py = (typeof s.y === 'number') ? (s.y * board) : board / 2;
+          const c = createCoin(s.label, px, py);
+          Body.setStatic(c, true);
+          c.isSensor = true;
+        });
+
+        // Sync queen state: if queen is on board, nobody is waiting for cover
+        const hasQueen = boardState.some(c => (c.label || '').toLowerCase() === 'queen');
+        if (hasQueen) {
+          waitingForCover = false;
+          queenPocketedBy = null;
+        } else {
+          // If queen is NOT on board, we might be waiting for cover
+          // If server didn't explicitly clear it, maintain local state or trust shooter role
+          if (!waitingForCover && nextShooterPlayerId) {
+            // potential logic to sync waitingForCover from server flags if added later
+          }
+        }
+      }
+
+      if (scores) {
+        psEl = document.getElementById('ps') || psEl;
+        bsEl = document.getElementById('bs') || bsEl;
+        const myScore = scores[myRole] || 0;
+        const oppRole = (myRole === 'white' ? 'black' : 'white');
+        const oppScore = scores[oppRole] || 0;
+        if (psEl) psEl.textContent = myScore;
+        if (bsEl) bsEl.textContent = oppScore;
+        pScore = myScore; bScore = oppScore; // sync local practice vars too
+
+        // Patch 5: spectator HUD score fallback update
+        if (isSpectator && document.getElementById('spectateScore')) {
+          document.getElementById('spectateScore').innerText = `White: ${scores.white || 0} | Black: ${scores.black || 0}`;
+        }
+      }
+
+      if (striker) { World.remove(engine.world, striker); striker = null; }
+      if (nextShooterRole) {
+        spawnStriker(nextShooterRole);
+        slider.disabled = true;
+        if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
+        myTurn = (nextShooterRole === myRole);
+        turnEl.textContent = myTurn ? 'YOUR TURN' : 'OPPONENT TURN';
+      }
+    });
+
+    // ══════════════════════════════════════════════════════════════════
+    //  SOCKET: YOUR TURN
+    // ══════════════════════════════════════════════════════════════════
+    // PATCH C3: yourTurn — spawn striker + enable input, clear overlay
+    socket.on('yourTurn', (data) => {
+      if (data && data.matchId && data.matchId !== matchRoom) return;
+      if (isSpectator) return;
+
+      if (data.seq && data.seq < currentTurnSeq) return;
+      if (data.seq) currentTurnSeq = data.seq;
+
+      clearWaitingOverlay();
+
+      console.log('[CLIENT] yourTurn received - enabling authority');
+      myTurn = true;
+      isAuthoritative = true;
+      endTurnSent = false;
+      turn = 'player';
+      turnEl.textContent = 'YOUR TURN';
+
+      spawnStriker(myRole);
+      const secs = (data && data.turnSeconds) ? data.turnSeconds : 15;
+      startTurnTimer(secs);
+    });
+
+    socket.on('turnPending', (data) => {
+      if (data && data.matchId && data.matchId !== matchRoom) return;
+      if (waitingForServer && data.nextPlayerId === myPlayerId) {
+        console.log('[CLIENT] turnPending notification received for me');
+        // Optionally update UI to show "Waiting for resolution..."
+      }
+    });
+
+    // ══════════════════════════════════════════════════════════════════
+    //  SOCKET: GAME END
+    // ══════════════════════════════════════════════════════════════════
+    socket.on('gameEnd', (data) => {
+      const evtMatchId = data.matchId || null;
+      const winnerRole = data.winnerRole === undefined ? null : data.winnerRole;
+
+      if (evtMatchId && evtMatchId !== matchRoom) return;
+      resetClientMatchState();
+      isGameActive = false;
+
+      if (isSpectator) {
+        document.getElementById('spectatorEndPopup').style.display = 'flex';
+        return;
+      }
+
+      if (isMultiplayer) {
+        if (winnerRole === null) endGame("TIME'S UP!", "It's a Draw!");
+        else {
+          const won = winnerRole === myRole;
+          endGame(won ? 'YOU WIN! 🏆' : 'YOU LOSE! 😔', won ? 'Victory!' : 'Better luck next time!');
+
+          if (currentTournamentMatchId && matchRoom) {
+            const savedUser = JSON.parse(localStorage.getItem("player"));
+            const myId = savedUser?.playerId;
+            const oppId = opponentPlayerId;
+            if (myId && oppId) {
+              socket.emit('tournamentMatchResult', {
+                tournamentId: currentTournamentMatchId,
+                matchId: matchRoom,
+                winnerId: won ? myId : oppId,
+                loserId: won ? oppId : myId
+              });
+            }
+            currentTournamentMatchId = null;
+            opponentPlayerId = null;
+          }
+        }
+      }
+    });
+
+    socket.on("match_ended", (data) => {
+      if (data.matchId && data.matchId !== matchRoom) return;
+      console.log('[CLIENT] match_ended received');
+      resetClientMatchState();
+    });
+
+    function exitSpectate() {
+      if (!isSpectator) return;
+
+      try { socket.emit('leave_spectate', { matchId: matchRoom }); } catch (e) { console.warn('leave_spectate emit failed', e); }
+
+      const specPopup = document.getElementById('spectatorEndPopup');
+      if (specPopup) specPopup.style.display = 'none';
+      const specHUD = document.getElementById('spectateHUD');
+      if (specHUD) specHUD.style.display = 'none';
+
+      isSpectator = false;
+      matchRoom = null;
+
+      // hide & remove spectate overlays and blockers
+      const overlays = document.querySelectorAll('.spectator-overlay, .spectator-only, .modal-block, #sync-overlay');
+      overlays.forEach(n => {
+        n.style.display = 'none';
+        if (n.classList.contains('spectator-only') && n.parentNode) n.parentNode.removeChild(n);
+      });
+
+      // restore controls visually
+      const controls = document.getElementById('controls');
+      if (controls) {
+        controls.style.pointerEvents = 'auto';
+        controls.classList.remove('spectator-disabled');
+      }
+
+      // reset any UI z-index that might have placed spectate HUD on top
+      const gameContainer = document.getElementById('gameContainer');
+      if (gameContainer) gameContainer.style.zIndex = ''; // reset
+
+      // reset aim UI to default to avoid stray slider positions
+      resetAimUI();
+      console.log('[CLIENT] exitSpectate: removed overlays & listeners');
+
+      window.returnToRoom();
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  SOCKET: QUEEN POCKETED (server authoritative — set waiting for cover)
+    // ══════════════════════════════════════════════════════════════════
+    socket.on('queen_pocketed', (data) => {
+      if (!data || data.matchId !== matchRoom) return;
+      if (data.seq && data.seq < currentTurnSeq) return;
+      console.log('[CLIENT] queen_pocketed received — waitingForCover=true, pocketer:', data.by);
+      waitingForCover = true;
+      queenPocketedBy = data.by;
+      showFlashMsg('Queen pocketed! Cover needed.');
+    });
+
+    socket.on('queen_return', (data) => {
+      if (!data || data.matchId !== matchRoom) return;
+      if (data.seq && data.seq < currentTurnSeq) return;
+      console.log('[CLIENT] queen_return received from server');
+      removeLocalQueen();
+    });
+
+    socket.on('queen_covered', (data) => {
+      if (!data || data.matchId !== matchRoom) return;
+      if (data.seq && data.seq < currentTurnSeq) return;
+      console.log('[CLIENT] queen_covered received');
+      waitingForCover = false;
+      queenPocketedBy = null;
+      queenPocketedThisShot = false;
+      showFlashMsg('Queen covered!');
+    });
+
+    socket.on('endTurnRejected', (data) => {
+      console.warn('[CLIENT] endTurnRejected from server', data);
+
+      // recover UI state
+      clearTimeout(endTurnWatchdog);
+      waitingForServer = false;
+      document.getElementById('sync-overlay').style.display = 'none';
+
+      // allow player to retry / regain control
+      endTurnSent = false;
+      isAuthoritative = true;
+      showSpinner(false);
+      // optional: restore previous board snapshot if server sent it
+      if (data && data.previousBoard) {
+        // restoreBoard should already use coinStateBeforeShot values, but use server snapshot if provided
+        try {
+          coins.forEach(c => World.remove(engine.world, c)); coins = [];
+          if (Array.isArray(data.previousBoard)) {
+            data.previousBoard.forEach(s => createCoin(s.label, (s.x || 0) * board, (s.y || 0) * board));
+          }
+        } catch (e) {
+          console.warn('[CLIENT] failed to restore board from rejection payload', e);
+        }
+      }
+    });
+
+    // ══════════════════════════════════════════════════════════════════
+    //  SOCKET: TIMER UPDATE (server heartbeat — overrides client timer to fix drift)
+    //  Handles BOTH player match timer and spectator timer in one handler
+    // ══════════════════════════════════════════════════════════════════
+    socket.on('timer_update', (data) => {
+      if (!data || data.matchId !== matchRoom) return; // match-scoped guard
+      if (isSpectator) {
+        // Spectator: update spectate HUD timer
+        const sTimer = document.getElementById('spectateTimer');
+        if (sTimer) sTimer.innerText = `Time Left: ${data.timeLeft}s`;
+      } else {
+        // Player: correct local match timer drift
+        matchTime = data.timeLeft;
+        const m = Math.floor(matchTime / 60), s = matchTime % 60;
+        matchEl.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      }
+    });
+
+    // ══════════════════════════════════════════════════════════════════
+    //  SOCKET: MATCH ENDED (server cleanup signal — clears local state)
+    //  Handles BOTH player and spectator match-end in one handler
+    // ══════════════════════════════════════════════════════════════════
+    socket.on('match_ended', (data) => {
+      if (data && data.matchId && data.matchId !== matchRoom) return; // match-scoped guard
+      console.log('[CLIENT] match_ended received for', matchRoom);
+      if (isSpectator) {
+        // For spectators: show the end popup (player flow handled by gameEnd)
+        document.getElementById('spectatorEndPopup').style.display = 'flex';
+        return;
+      }
+      onMatchEnded();
+    });
+
+    // ══════════════════════════════════════════════════════════════════
+    //  INPUT: SLIDER
+    // ══════════════════════════════════════════════════════════════════
+    slider.addEventListener('input', e => {
+      if (isSpectator) return; // block interaction
+      if (shot || !isLocalTurn() || !striker) return;
+      let targetX = margin + (e.target.value / 100) * (board - 2 * margin);
+      // PATCH A5: invert X for black role (canvas rotated 180°, so slider right should move striker right visually)
+      if (isMultiplayer && myRole === 'black') targetX = board - targetX;
+      Body.setPosition(striker, { x: targetX, y: striker.position.y });
+    });
+
+    // ══════════════════════════════════════════════════════════════════
+    //  INPUT: POINTER (all listeners use toCanonicalPointer)
+    // ══════════════════════════════════════════════════════════════════
+    // Replace existing pointer listener gating with this (ccpvp.html)
+    canvas.addEventListener('pointerdown', e => {
+      if (isSpectator) return;                 // block interaction
+      if (shot || !striker) return;
+      if (!isLocalTurn()) return;              // <- use same rule as slider
+      console.log('[INPUT] pointerdown', { myTurn, isAuthoritative, isLocalTurn: isLocalTurn() });
+      const { cx, cy } = toCanonicalPointer(e);
+      if (Math.hypot(cx - striker.position.x, cy - striker.position.y) < strikerR * 4) isAiming = true;
+    });
+
+    canvas.addEventListener('pointermove', e => {
+      if (isSpectator) return;
+      if (!isAiming || !striker) return;
+      const { cx, cy } = toCanonicalPointer(e);
+      const dx = striker.position.x - cx, dy = striker.position.y - cy;
+      aimPower = Math.min(Math.hypot(dx, dy), 160);
+      aimDir = Vector.normalise({ x: dx, y: dy });
+    });
+
+    canvas.addEventListener('pointerup', e => {
+      if (isSpectator) return;
+      if (!isAiming || !striker) return;
+      console.log('[INPUT] pointerup', { aimPower, myTurn, isAuthoritative, isLocalTurn: isLocalTurn() });
+      if (aimPower > 20) {
+        saveCoinState();
+        striker.isSensor = false;
+        const vel = Vector.mult(aimDir, aimPower * 0.18);
+        Body.setVelocity(striker, vel);
+        shot = true; isFired = true;
+        // keep the existing multiplayer logic: mark authoritative when we send endTurn
+        if (isMultiplayer && myTurn && matchRoom) { isAuthoritative = true; myTurn = false; }
+        if (strikerSound.paused && sfxEnabled) { strikerSound.loop = true; strikerSound.play().catch(() => { }); }
+      }
+      isAiming = false;
+    });
+
+    // ══════════════════════════════════════════════════════════════════
+    //  BOT AI (practice only)
+    // ══════════════════════════════════════════════════════════════════
+    function botMove() {
+      if (gameOver || !striker || isMultiplayer) return;
+      let targetLabels = waitingForCover ? ['black'] : (coins.some(c => c.label === 'queen') ? ['queen', 'black'] : ['black']);
+      let targets = coins.filter(c => targetLabels.includes(c.label));
+      if (targets.length === 0) targets = coins;
+      let bestShot = null, highestWeight = -Infinity;
+      targets.forEach(coin => {
+        pockets.forEach(pocket => {
+          const toPocket = Vector.sub(pocket.position, coin.position);
+          const distToPocket = Vector.magnitude(toPocket);
+          if (distToPocket > board * 0.8) return;
+          const dirToPocket = Vector.normalise(toPocket);
+          const targetHitPos = Vector.sub(coin.position, Vector.mult(dirToPocket, coinR + strikerR));
+          const toHitPos = Vector.sub(targetHitPos, striker.position);
+          const distToHitPos = Vector.magnitude(toHitPos);
+          const botZoneY = board * 0.145;
+          if (Math.abs(coin.position.y - botZoneY) < strikerR + 5) {
+            const bankX = (coin.position.x > board / 2) ? board : 0, bankY = (coin.position.y + striker.position.y) / 2;
+            const toBank = Vector.sub({ x: bankX, y: bankY }, striker.position);
+            const weight = 300 - distToPocket;
+            if (weight > highestWeight) { highestWeight = weight; bestShot = { dir: Vector.normalise(toBank), power: 18 }; }
+          } else {
+            let weight = 1000 - distToPocket - distToHitPos * 0.5;
+            if (coin.label === 'queen') weight += 600;
+            if (weight > highestWeight) { highestWeight = weight; bestShot = { dir: Vector.normalise(toHitPos), power: (distToPocket * 0.055) + (distToHitPos * 0.035) }; }
+          }
+        });
+      });
+      if (!bestShot) bestShot = { dir: Vector.normalise(Vector.sub(targets[0].position, striker.position)), power: 15 };
+      saveCoinState(); striker.isSensor = false;
+      Body.setVelocity(striker, Vector.mult(bestShot.dir, Math.min(Math.max(bestShot.power, 10), 22)));
+      shot = true; isFired = true;
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  DRAWING
+    // ══════════════════════════════════════════════════════════════════
+    function drawBoardDesign(ctx) {
+      const cx = board / 2, cy = board / 2, laneLen = board - 2 * margin, laneStart = margin, laneCenter = board * 0.145;
+      pockets.forEach(p => {
+        ctx.fillStyle = '#050301'; ctx.beginPath(); ctx.arc(p.position.x, p.position.y, pocketR, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#1a1008'; ctx.lineWidth = 3; ctx.stroke();
+      });
+      ctx.strokeStyle = 'rgba(61,38,22,.8)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(cx, cy, board * .18, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx, cy, board * .06, 0, Math.PI * 2); ctx.stroke();
+      for (let i = 0; i < 8; i++) {
+        ctx.beginPath(); ctx.moveTo(cx, cy);
+        const ang = i * Math.PI / 4, len = i % 2 === 0 ? board * .17 : board * .12;
+        ctx.lineTo(cx + Math.cos(ang) * len, cy + Math.sin(ang) * len); ctx.stroke();
+      }
+      [0, Math.PI / 2, Math.PI, -Math.PI / 2].forEach(rot => {
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot); ctx.translate(-cx, -cy);
+        ctx.strokeStyle = 'rgba(74,48,29,.7)'; ctx.lineWidth = 2.5;
+        const y1 = laneCenter - strikerR * 1.05, y2 = laneCenter + strikerR * 1.05;
+        ctx.beginPath(); ctx.moveTo(laneStart, y1); ctx.lineTo(laneStart + laneLen, y1); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(laneStart, y2); ctx.lineTo(laneStart + laneLen, y2); ctx.stroke();
+        ctx.fillStyle = '#aa2222'; ctx.strokeStyle = '#3d2616'; ctx.lineWidth = 1.5;
+        [laneStart, laneStart + laneLen].forEach(x => { ctx.beginPath(); ctx.arc(x, laneCenter, strikerR, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); });
+        ctx.restore();
+      });
+      ctx.fillStyle = '#d2a679'; ctx.fillRect(0, 0, board, board);
+    }
+
+    Events.on(render, 'afterRender', () => {
+      const ctx = render.context;
+      if (shot && striker && striker.speed > 0.5) {
+        if (strikerSound.paused && sfxEnabled) { strikerSound.loop = true; strikerSound.play().catch(() => { }); }
+      } else { if (!strikerSound.paused) { strikerSound.pause(); strikerSound.currentTime = 0; } }
+
+      ctx.save(); ctx.globalCompositeOperation = 'destination-over'; drawBoardDesign(ctx); ctx.restore();
+
+      coins.forEach(c => {
+        const p = c.position; ctx.save(); ctx.shadowBlur = 5; ctx.shadowColor = 'rgba(0,0,0,.4)';
+        let g = ctx.createRadialGradient(p.x - coinR * .3, p.y - coinR * .3, 2, p.x, p.y, coinR);
+        if (c.label === 'white') { g.addColorStop(0, '#fff'); g.addColorStop(1, '#bbb'); }
+        else if (c.label === 'black') { g.addColorStop(0, '#444'); g.addColorStop(1, '#111'); }
+        else { g.addColorStop(0, '#f22'); g.addColorStop(1, '#800'); }
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, coinR, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,.2)'; ctx.stroke(); ctx.restore();
+      });
+
+      if (striker) {
+        const p = striker.position; ctx.save();
+        ctx.globalAlpha = striker.render.opacity || 1; ctx.shadowBlur = 8; ctx.shadowColor = 'rgba(0,0,0,.5)';
+        let g = ctx.createRadialGradient(p.x - strikerR * .3, p.y - strikerR * .3, 2, p.x, p.y, strikerR);
+        g.addColorStop(0, '#4cd14c'); g.addColorStop(1, '#0e330e');
+        ctx.fillStyle = g; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(p.x, p.y, strikerR, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.restore();
+      }
+
+      if (isAiming && aimPower > 15 && striker) {
+        ctx.save(); ctx.translate(striker.position.x, striker.position.y);
+        ctx.rotate(Math.atan2(aimDir.y, aimDir.x));
+        const hue = Math.max(0, 90 - (aimPower / 160) * 90);
+        ctx.strokeStyle = `hsl(${hue},100%,50%)`; ctx.fillStyle = `hsl(${hue},100%,50%)`;
+        ctx.lineWidth = 5; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(aimPower, 0); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(aimPower, 0); ctx.lineTo(aimPower - 15, -8); ctx.lineTo(aimPower - 15, 8); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+    });
+
+    // ══════════════════════════════════════════════════════════════════
+    //  DEBUG PANEL (press D)
+    // ══════════════════════════════════════════════════════════════════
+    document.addEventListener('keydown', e => {
+      if (e.key.toLowerCase() !== 'd') return;
+      dbgPanel.style.display = dbgPanel.style.display === 'none' ? 'block' : 'none';
+    });
+    setInterval(() => {
+      if (dbgPanel.style.display === 'none') return;
+      dbgPanel.innerHTML =
+        `isMP:${isMultiplayer} role:${myRole}<br>` +
+        `myTurn:${myTurn} isAuth:${isAuthoritative}<br>` +
+        `matchRoom:${matchRoom ? matchRoom.slice(-8) : '—'}<br>` +
+        `shot:${shot} fired:${isFired}<br>` +
+        `endTurnSent:${endTurnSent}<br>` +
+        `δ w${mpScoreDelta.white} b${mpScoreDelta.black}<br>` +
+        `pScore:${pScore} bScore:${bScore}<br>` +
+        `coins:${coins.length} gameOver:${gameOver}<br>` +
+        `waitCover:${waitingForCover} zoneFoul:${zoneFoulTriggered}`;
+    }, 250);
+
+    // ══════════════════════════════════════════════════════════════════
+    //  RETURN TO LOBBY & BROADCAST MESSAGES
+    // ══════════════════════════════════════════════════════════════════
+    function returnToRoom() {
+      // Clean up match state first to prevent stale events
+      onMatchEnded();
+
+      // Remove physics bodies so board is not left visible/stale
+      try {
+        if (Array.isArray(coins) && coins.length) {
+          coins.forEach(c => {
+            try { World.remove(engine.world, c); } catch (e) { /*ignore*/ }
+          });
+          coins = [];
+        }
+        if (striker) {
+          try { World.remove(engine.world, striker); } catch (e) { /*ignore*/ }
+          striker = null;
+        }
+        queenBody = null;
+      } catch (e) {
+        console.warn('[RETURN_CLEANUP] error removing bodies', e);
+      }
+
+      // Hide game UI & overlays
+      document.getElementById('overlay').style.display = 'none';
+      document.getElementById('ui').style.display = 'none';
+      document.getElementById('controls').style.display = 'none';
+
+      // Reset canvas rotation (in case player was black)
+      canvas.style.transform = '';
+
+      // Show Home Page and Room Panel if appropriate
+      document.getElementById('home-page').style.display = 'flex';
+      if (currentRoom) openTournamentPanel();
+
+      // Reset Match/Lobby state
+      isMultiplayer = false;
+      amReady = false;
+      window.isSearchingBattle = false;  // unify flags (see section 4)
+      const battleBtn = document.getElementById('battleBtn');
+      if (battleBtn) { battleBtn.textContent = 'Battle'; battleBtn.classList.remove('active', 'battle-ready'); }
+      // Also reset lobbyBattleBtn if lobby is open
+      const lobbyBattleBtn = document.getElementById('lobbyBattleBtn');
+      if (lobbyBattleBtn) { lobbyBattleBtn.innerText = '\u2694 Battle'; lobbyBattleBtn.classList.remove('active', 'battle-ready'); lobbyBattleBtn.style.background = ''; }
+
+      // PATCH D: hide spectator end popup when returning to lobby
+      const _sEP2 = document.getElementById('spectatorEndPopup');
+      if (_sEP2) _sEP2.style.display = 'none';
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  MATCH CLEANUP — clears all active timers and match flags
+    //  Call when a match ends (from gameEnd, match_ended, or returnToRoom)
+    // ══════════════════════════════════════════════════════════════════
+    function onMatchEnded() {
+      // Stop all timers
+      if (matchInterval) { clearInterval(matchInterval); matchInterval = null; }
+      if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
+      // Clear match identity — future events with any matchId will be ignored
+      matchRoom = null;
+      myTurn = false;
+      isGameActive = false;
+      isAuthoritative = false;
+      endTurnSent = false;
+
+      // Reset seq so next match boardState will be accepted
+      currentTurnSeq = 0;
+
+      // PATCH C: clear client lobby-ready/searching flags (fixes "stuck Searching" after matches)
+      window.isSearchingBattle = false;
+      amReady = false;
+      // Reset both possible battle buttons
+      const _bb1 = document.getElementById('battleBtn');
+      if (_bb1) { setBattleButtonState(false, false, 'live', _bb1); }
+      const _bb2 = document.getElementById('lobbyBattleBtn');
+      if (_bb2) { setBattleButtonState(false, false, 'live', _bb2); }
+
+      // PATCH D: ensure spectator end popup is hidden when returning from a match
+      const _specPopup = document.getElementById('spectatorEndPopup');
+      if (_specPopup) _specPopup.style.display = 'none';
+
+      // C6: force lobby refresh from server
+      if (typeof currentUser !== 'undefined' && currentUser && currentTournament && currentTournament._id) {
+        socket.emit('joinTournamentRoom', { tournamentId: currentTournament._id, playerId: currentUser.playerId });
+      }
+
+      console.log('[CLIENT] onMatchEnded: state cleared, flags reset');
+    }
+
+    function broadcastMsg(txt) {
+      showFlashMsg(txt); // Show it for yourself
+      if (isMultiplayer && matchRoom) {
+        socket.emit('flashMsg', { matchRoom, msg: txt }); // Send to opponent
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  START ENGINE
+    // ══════════════════════════════════════════════════════════════════
+    Render.run(render);
+    Runner.run(runner, engine);
+
+    // ✅ STEP 6 — JAVASCRIPT LOGIC
+    const authModal = document.getElementById("authModal");
+    const loginBtn = document.getElementById("loginBtn");
+    const registerBtn = document.getElementById("registerBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const closeAuth = document.getElementById("closeAuth");
+
+    const authName = document.getElementById("authName");
+    const authEmail = document.getElementById("authEmail");
+    const authPassword = document.getElementById("authPassword");
+    const profileInfo = document.getElementById("profileInfo");
+
+    document.getElementById("profileIcon").onclick = () => {
+      const savedUser = localStorage.getItem("player");
+      authModal.style.display = "flex";
+      if (savedUser) {
+        showProfile(JSON.parse(savedUser));
+      } else {
+        showAuthForm();
+      }
+    };
+
+    closeAuth.onclick = () => {
+      authModal.style.display = "none";
+    };
+
+    registerBtn.onclick = async () => {
+      if (!authName.value || !authEmail.value || !authPassword.value) {
+        alert("Please fill all fields");
+        return;
+      }
+
+      const res = await fetch("http://192.168.31.226:3000/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          name: authName.value,
+          email: authEmail.value,
+          password: authPassword.value
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        currentUser = data.user;
+        showProfile(data.user);
+      } else {
+        alert(data.message);
+      }
+    };
+
+    loginBtn.onclick = async () => {
+      if (!authEmail.value || !authPassword.value) {
+        alert("Enter email and password");
+        return;
+      }
+
+      const res = await fetch("http://192.168.31.226:3000/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          email: authEmail.value,
+          password: authPassword.value
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        currentUser = data.user;
+        showProfile(data.user);
+      } else {
+        alert(data.message);
+      }
+    };
+
+    logoutBtn.onclick = () => {
+      currentUser = null;
+      showAuthForm();
+    };
+
+    function showProfile(user) {
+      // Hide auth inputs
+      authName.style.display = "none";
+      authEmail.style.display = "none";
+      authPassword.style.display = "none";
+      loginBtn.style.display = "none";
+      registerBtn.style.display = "none";
+
+      // Show logout
+      logoutBtn.style.display = "block";
+
+      // Show clean profile info
+      profileInfo.style.display = "block";
+      profileInfo.innerHTML = `
+        <h3>${user.name}</h3>
+        <p><b>Player ID:</b> ${user.playerId}</p>
+        <p><b>Coins:</b> ${user.coins}</p>
+      `;
+    }
+
+    function showAuthForm() {
+      profileInfo.style.display = "none";
+
+      authName.style.display = "block";
+      authEmail.style.display = "block";
+      authPassword.style.display = "block";
+
+      loginBtn.style.display = "block";
+      registerBtn.style.display = "block";
+      logoutBtn.style.display = "none";
+
+      authName.value = "";
+      authEmail.value = "";
+      authPassword.value = "";
+    }
+
+    async function checkSession() {
+      try {
+        const res = await fetch("http://192.168.31.226:3000/check-auth", { credentials: "include" });
+        const data = await res.json();
+        if (data.loggedIn) {
+          currentUser = data.user;
+          showProfile(data.user);
+        } else {
+          currentUser = null;
+          showAuthForm();
+        }
+      } catch (err) { console.error("Auth check failed", err); }
+    }
+
+    // 🏆 TOURNAMENT SYSTEM
+    let currentUser = null;
+    let currentTournamentMatchId = null;
+    let activeTournament = null;
+    const lobby = document.getElementById("tLobby");
+
+    function showTournamentModal() {
+      document.getElementById("tournamentModal").classList.remove("hidden");
+      showCreateTab();
+    }
+
+    function closeTournamentModal() {
+      document.getElementById("tournamentModal").classList.add("hidden");
+    }
+
+    window.showCreateTab = () => {
+      document.getElementById("createSection").classList.remove("hidden");
+      document.getElementById("joinSection").classList.add("hidden");
+    };
+
+    window.showJoinTab = () => {
+      document.getElementById("joinSection").classList.remove("hidden");
+      document.getElementById("createSection").classList.add("hidden");
+      loadTournaments();
+    };
+
+    document.getElementById("tournamentBtn").onclick = async () => {
+      if (!currentUser) {
+        alert("Please login first");
+        return;
+      }
+      showScreen("tournamentPopup");
+    };
+
+    window.openCreate = () => {
+      showScreen("createTournamentPopup");
+    };
+
+    window.openJoin = () => {
+      showScreen("joinTournamentPopup");
+      loadTournaments();
+    };
+
+    async function openMyLobby() {
+      const res = await fetch(`http://192.168.31.226:3000/my-tournament/${currentUser.playerId}`, { credentials: "include" });
+      const data = await res.json();
+
+      if (!data.success) {
+        alert("You are not in any active tournament");
+        return;
+      }
+
+      showScreen("lobbyPopup");
+      openLobbyUI(data.tournament);
+    }
+
+    document.getElementById("createTournamentBtn").addEventListener("click", async () => {
+      if (currentUser.coins < 300) {
+        alert("Not enough coins");
+        return;
+      }
+
+      const name = document.getElementById("tName").value;
+      const start = document.getElementById("tStart").value;
+      const duration = document.getElementById("tDuration").value;
+      const capacity = document.getElementById("tCapacity").value;
+
+      if (!name || !start || !capacity) {
+        alert("Fill all fields");
+        return;
+      }
+
+      const startTime = new Date(start).toISOString();
+      const endTime = new Date(new Date(start).getTime() + parseInt(duration) * 60000).toISOString();
+
+      const res = await fetch("http://192.168.31.226:3000/create-tournament", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          name,
+          startTime,
+          endTime,
+          capacity
+        })
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        alert(data.message);
+        return;
+      }
+
+      currentUser.coins = data.coins;
+      showProfile(currentUser);
+
+      alert("Tournament Created Successfully!");
+      closeTournamentModal();
+      openLobbyUI(data.tournament);
+    });
+
+    // Global sync listeners for non-battling / idle players
+    socket.on('playerUpdate', (data) => {
+      if (!data || !currentUser) return;
+      if (data.playerId === currentUser.playerId) {
+        console.log('[CLIENT] Global playerUpdate received:', data);
+        currentUser.coins = data.coins;
+        currentUser.wins = data.wins;
+        // hearts/lives if applicable
+        localStorage.setItem("player", JSON.stringify(currentUser));
+        showProfile(currentUser);
+      }
+    });
+
+    socket.on('tournamentUpdate', (t) => {
+      console.log('[CLIENT] Global tournamentUpdate received:', t._id);
+      // Update internal model
+      if (currentTournament && currentTournament._id === t._id) {
+        refreshLobby(t);
+      }
+      // If lobby list is open, refresh it manually or via polling
+    });
+
+    async function loadTournaments() {
+      const res = await fetch("/get-tournaments", { credentials: "include" });
+      const data = await res.json();
+
+      const list = document.getElementById("tournamentList");
+      list.innerHTML = "";
+
+      if (!data.success) return;
+
+      data.tournaments.forEach(t => {
+        if (t.status === 'live') return; // hide live ones from join
+
+        const div = document.createElement("div");
+
+        div.innerHTML = `
+          <p><strong>${t.name}</strong></p>
+          <p>${t.players.length}/${t.capacity}</p>
+          <button onclick="joinTournamentId('${t._id}')">
+            Join (100 Coins)
+          </button>
+          <hr style="border: 0; border-top: 1px solid #374151; margin: 10px 0;">
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    window.joinTournamentId = async (id) => {
+      const res = await fetch("http://192.168.31.226:3000/join-tournament", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ tournamentId: id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        currentUser.coins -= 100;
+        showProfile(currentUser);
+        openLobbyUI(data.tournament);
+      } else alert(data.message);
+    };
+
+    document.getElementById("searchTournament").addEventListener("input", function () {
+      const value = this.value.toLowerCase();
+      const items = document.querySelectorAll("#tournamentList div");
+      items.forEach(item => {
+        item.style.display = item.innerText.toLowerCase().includes(value) ? "block" : "none";
+      });
+    });
+
+    // 🎁 REDEEM SYSTEM
+    document.getElementById("redeemIcon").addEventListener("click", () => {
+      if (!currentUser) {
+        alert("Login first");
+        return;
+      }
+      document.getElementById("redeemModal").classList.remove("hidden");
+    });
+
+    window.closeRedeem = () => {
+      document.getElementById("redeemModal").classList.add("hidden");
+    }
+
+    document.getElementById("redeemSubmit").addEventListener("click", () => {
+      const code = document.getElementById("redeemInput").value.trim();
+      if (!code) return alert("Enter a code");
+
+      socket.emit("redeemCode", {
+        playerId: currentUser?.playerId,
+        code: code
+      });
+      closeRedeem();
+    });
+
+    // (loadTournaments superseded refreshTournamentsList)
+
+    let currentTournament = null;
+    let lobbyTimerInterval = null;
+
+    // ── Lobby: one-time setup (called only when entering lobby) ───────
+    function openLobbyUI(t) {
+      currentTournament = t;
+
+      // Build the STATIC skeleton only once (or when re-entering)
+      const popup = document.getElementById("lobbyPopup");
+      const modalContent = popup ? popup.querySelector(".modal-content") : null;
+      if (!modalContent) return;
+
+      modalContent.innerHTML = `
+        <h3 style="color:#00ffcc; margin-top:0; font-size:1.1rem; text-align:center;" id="lobbyTournamentName"></h3>
+        <div style="color:#888; font-size:11px; margin-bottom:4px; text-align:center;">&#9200; Time Left:</div>
+        <div id="tournamentTimer" style="font-weight:bold;color:gold;font-size:1.3rem;margin-bottom:12px;text-align:center;">--:--:--</div>
+        <div id="lobbyPlayers" style="max-height:220px;overflow-y:auto;margin:0 0 12px 0;"></div>
+        <button id="lobbyBattleBtn" class="battleBtn" disabled>&#9876; Battle</button>
+        <button onclick="showScreen('mainMenu'); currentTournament = null;"
+          style="width:100%;background:transparent;border:1px solid #374151;margin-top:10px;color:#9ca3af;padding:10px;border-radius:8px;cursor:pointer;font-size:14px;">Leave Lobby</button>
+      `;
+
+      // Wire battle button click ONCE here (never via innerHTML overwrite)
+      document.getElementById("lobbyBattleBtn").onclick = () => {
+        const btn = document.getElementById("lobbyBattleBtn");
+        if (!btn || btn.disabled) return;
+
+        if (!window.isSearchingBattle) {
+          // Start searching
+          window.isSearchingBattle = true;
+          amReady = true;
+          socket.emit("tournamentReady", {
+            tournamentId: currentTournament._id,
+            playerId: currentUser.playerId
+          });
+          btn.innerText = "🔍 Searching. (Cancel)";
+          btn.classList.remove("battle-ready");
+          btn.style.background = "";
+        } else {
+          // Cancel searching
+          window.isSearchingBattle = false;
+          amReady = false;
+          socket.emit('cancelTournamentReady', {
+            tournamentId: currentTournament._id,
+            playerId: currentUser.playerId
+          });
+          btn.innerText = "⚔ Battle";
+        }
+      };
+
+      showScreen("lobbyPopup");
+      // make sure socket joins server tournament room and server stores socketId
+      socket.emit('joinTournamentRoom', { tournamentId: t._id, playerId: currentUser.playerId });
+
+      // Start the timer with the real endTime
+      startLobbyTimer(t.endTime);
+
+      // Fill dynamic content
+      refreshLobby(t);
+
+      // 10s polling fallback for lobby consistency
+      if (window.lobbyPollInterval) clearInterval(window.lobbyPollInterval);
+      window.lobbyPollInterval = setInterval(async () => {
+        if (!currentTournament || document.getElementById('lobbyPopup').style.display === 'none') {
+          clearInterval(window.lobbyPollInterval);
+          return;
+        }
+        try {
+          const res = await fetch(`/tournaments/status/${currentTournament._id}`);
+          const data = await res.json();
+          if (data.success && data.tournament) {
+            refreshLobby(data.tournament);
+          }
+        } catch (e) {
+          console.warn('Lobby poll failed:', e);
+        }
+      }, 10000);
+    }
+
+    // ── Lobby: dynamic refresh (called on every tournamentUpdate) ─────
+    function refreshLobby(t) {
+      currentTournament = t;
+      const nameEl = document.getElementById("lobbyTournamentName");
+      if (nameEl) nameEl.textContent = t.name || '';
+      renderPlayers(Array.isArray(t.players) ? t.players : []);
+      updateBattleButton(t.status, t.players);
+    }
+
+    // ── Player list renderer ──────────────────────────────────────────
+    function renderPlayers(players) {
+      const listEl = document.getElementById("lobbyPlayers");
+      if (!listEl) return;
+
+      // Defensive: ensure array
+      const arr = Array.isArray(players) ? players.slice() : [];
+      // Remove duplicates by playerId (if any)
+      const byId = {};
+      arr.forEach(p => { if (p && p.playerId) byId[p.playerId] = p; });
+      const deduped = Object.values(byId);
+
+      // Sort by wins then score (safely)
+      const sorted = deduped.sort((a, b) => {
+        const wa = a.wins || 0, wb = b.wins || 0;
+        if (wa !== wb) return wb - wa;
+        const sa = a.score || 0, sb = b.score || 0;
+        return sb - sa;
+      });
+
+      listEl.innerHTML = "";
+      sorted.forEach((p, i) => {
+        const d = document.createElement("div");
+        d.className = "playerRow";
+        const livesCount = Math.max(0, p.lives || 0);
+        const eliminated = livesCount <= 0 ? " 💀" : "";
+        const livesHtml = livesCount > 0
+          ? `<span style="color:#e74c3c;font-size:12px;">❤️×${livesCount}</span>`
+          : `<span style="color:#555;font-size:12px;">💀</span>`;
+
+        d.innerHTML = `
+          <span class="rank">#${i + 1}</span>
+          <span class="name">${(p.name || 'Player') + eliminated}
+            <span id="live-${p.playerId}" class="live-dot" ${p.matchId ? 'data-match-id="' + p.matchId + '"' : ''}></span>
+            <br><small style="color:#555;font-size:10px;">${p.playerId}</small>
+          </span>
+          <span class="wins">🏆 ${p.wins || 0}</span>
+          ${livesHtml}
+        `;
+        listEl.appendChild(d);
+      });
+    }
+
+    // ── Battle button state ───────────────────────────────────────────
+    function updateBattleButton(status, players) {
+      const btn = document.getElementById("lobbyBattleBtn");
+      const playerArr = players || (currentTournament ? currentTournament.players : []);
+      const me = Array.isArray(playerArr) ? playerArr.find(p => p.playerId === currentUser?.playerId) : null;
+
+      // Make server-ready the canonical source:
+      window.isSearchingBattle = !!(me && me.ready);
+      amReady = !!(me && me.ready);
+      const isElim = me && (me.eliminated || me.lives <= 0);
+
+      // C5 helper logic centralized
+      setBattleButtonState(amReady, isElim, status, btn);
+
+      // also update standard battle button if lobby isn't open but panel is
+      const stdBtn = document.getElementById('battleBtn');
+      if (stdBtn) setBattleButtonState(amReady, isElim, status, stdBtn);
+    }
+
+    function setBattleButtonState(isReady, isEliminated, status, btn) {
+      if (!btn) return;
+      btn.style.background = "";
+      btn.style.color = "";
+      btn.classList.remove("battle-ready", "active");
+
+      // Only allow Battle if the tournament is live
+      if (status !== 'live') {
+        btn.disabled = true;
+        btn.innerText = "⏳ Waiting to Start";
+        btn.textContent = "⏳ Waiting to Start";
+        return;
+      }
+
+      if (isEliminated) {
+        btn.disabled = true;
+        btn.innerText = "💀 Eliminated";
+        btn.textContent = "💀 Eliminated";
+        btn.style.background = "transparent";
+        btn.style.color = "#888";
+        return;
+      }
+
+      if (isReady) {
+        btn.disabled = false;
+        btn.innerText = "🔍 Searching... (Cancel)";
+        btn.textContent = "🔍 Searching... (Cancel)";
+      } else {
+        btn.disabled = false;
+        btn.innerText = "⚔ Battle";
+        btn.textContent = "⚔ Battle";
+        btn.classList.add(btn.id === 'lobbyBattleBtn' ? "battle-ready" : "active");
+      }
+    }
+
+    // ── Lobby countdown timer (HH:MM:SS) ─────────────────────────────
+    function startLobbyTimer(endTime) {
+      if (lobbyTimerInterval) {
+        clearInterval(lobbyTimerInterval);
+        lobbyTimerInterval = null;
+      }
+
+      function tick() {
+        const timerEl = document.getElementById("tournamentTimer");
+        if (!timerEl) return; // DOM gone
+
+        const diff = new Date(endTime).getTime() - Date.now();
+        if (diff <= 0) {
+          timerEl.innerText = "00:00:00";
+          clearInterval(lobbyTimerInterval);
+          lobbyTimerInterval = null;
+          return;
+        }
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        timerEl.innerText =
+          `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+      }
+
+      tick(); // show immediately, don't wait 1 second
+      lobbyTimerInterval = setInterval(tick, 1000);
+    }
+
+    // ── Socket: live updates ──────────────────────────────────────────
+    socket.on('tournamentUpdate', (t) => {
+      console.log('[CLIENT] tournamentUpdate', t._id);
+      // If lobby open for this tournament, refresh it; otherwise set currentTournament so openLobbyUI sees it
+      if (!currentTournament || currentTournament._id !== t._id) {
+        // If the user is currently inside that lobby, set it and call openLobbyUI
+        if (document.getElementById('lobbyPopup') && document.getElementById('lobbyPopup').style.display !== 'none') {
+          currentTournament = t;
+          refreshLobby(t);
+        } else {
+          // If we are not currently viewing the lobby, just update cached state so openLobbyUI uses fresh data
+          currentTournament = t;
+        }
+      } else {
+        refreshLobby(t);
+      }
+    });
+
+    socket.on("tournamentStarted", (t) => {
+      if (!currentTournament || currentTournament._id !== t._id) return;
+      refreshLobby(t); // button becomes yellow/active
+    });
+
+    // Reset UI when server confirms cancel
+    socket.on('cancelledReady', () => {
+      window.isSearchingBattle = false;
+      amReady = false;
+      const btn = document.getElementById('lobbyBattleBtn');
+      if (btn) btn.innerText = '⚔ Battle';
+    });
+
+
+    socket.on('tournamentPayout', ({ winner, amount }) => {
+      if (currentUser && currentUser.playerId === winner) {
+        alert(`CONGRATS! You won the Tournament and ${amount} coins!`);
+        currentUser.coins += amount;
+        localStorage.setItem("player", JSON.stringify(currentUser));
+        showProfile(currentUser);
+      } else {
+        alert(`Tournament Winner: ${winner}`);
+      }
+    });
+
+    window.returnToRoom = () => {
+      document.getElementById('overlay').style.display = 'none';
+      if (currentTournament) {
+        showScreen("lobbyPopup");
+      } else {
+        location.reload();
+      }
+    };
+
+    socket.on("active_matches", (data) => {
+      if (!data) return;
+      document.querySelectorAll('.live-dot').forEach(el => {
+        el.classList.remove('live');
+        delete el.dataset.matchId;
+      });
+      data.forEach(item => {
+        const dot = document.getElementById("live-" + item.playerId);
+        if (dot) {
+          dot.classList.add("live");
+          dot.dataset.matchId = item.matchId;
+        }
+      });
+    });
+
+    window.hideSpectateOverlay = function () {
+      document.getElementById("spectateBackBtn").style.display = "none";
+      const HUD = document.getElementById("spectateHUD");
+      if (HUD) HUD.style.display = "none";
+      const sScore = document.getElementById("spectateScore");
+      const sTimer = document.getElementById("spectateTimer");
+      const sCount = document.getElementById("spectatorCount");
+      if (sScore) sScore.innerText = "";
+      if (sTimer) sTimer.innerText = "";
+      if (sCount) sCount.innerText = "";
+      coins.forEach(c => World.remove(engine.world, c)); coins = [];
+      if (striker) { World.remove(engine.world, striker); striker = null; }
+    };
+
+    function hideGameUI() {
+      document.getElementById("ui").style.display = "none";
+      document.getElementById("controls").style.display = "none";
+      // hide overlays that belong to playing mode
+      document.getElementById("overlay").style.display = "none";
+      // stop any match timers for player
+      if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
+    }
+
+    function showSpectatorHUD(data) {
+      const HUD = document.getElementById("spectateHUD");
+      if (HUD) HUD.style.display = "block";
+      if (data && data.scores) {
+        document.getElementById("spectateScore").innerText = `White: ${data.scores.white} | Black: ${data.scores.black}`;
+      }
+      isSpectator = true;
+    }
+
+    window.spectateMatch = function (matchId) {
+      if (isSpectator) window.exitSpectate();
+      if (!matchId) return;
+
+      // start spectate UX, but wait for server
+      // showScreen('loadingSpectate'); // loading screen or simple overlay
+      socket.emit("spectate_match", { matchId });
+
+      // fallback: if spectate_started not received after 1.5s, request board state
+      setTimeout(() => {
+        if (matchId === window.isSpectatingMatchId && !isSpectator) {
+          socket.emit('requestBoardState', { matchRoom: matchId });
+        }
+      }, 1500);
+
+      // Moved to spectate_started to ensure authoritative data is present
+      // showScreen("gameContainer");
+      // hideGameUI();
+      document.getElementById("spectateBackBtn").style.display = "block";
+
+      // Visually disable slider / aim UI
+      document.getElementById('controls').style.pointerEvents = 'none';
+      document.getElementById('controls').classList.add('disabled');
+
+      myTurn = false;
+      isAuthoritative = false;
+      matchRoom = matchId; // allows beforeunload disconnect logic
+      window.isSpectatingMatchId = matchId;
+      // isSpectator = true; // set in spectate_started
+    };
+
+    window.exitSpectate = function exitSpectate(opts = {}) {
+      try {
+        if (!isSpectator) return;
+        isSpectator = false;
+
+        // Remove spectator-specific socket listeners/interceptors
+        window.isSpectatingMatchId = null;
+
+        // Remove any dynamically inserted spectator HUD elements
+        const hud = document.getElementById('spectateHud');
+        if (hud) {
+          hud.style.display = 'none';
+          hud.classList.add('hidden');
+        }
+        const overlay = document.getElementById('spectateOverlay');
+        if (overlay) {
+          overlay.style.display = 'none';
+          overlay.classList.add('hidden');
+        }
+        // Force cleanup of any .spectate-inserted elements
+        document.querySelectorAll('.spectate-inserted').forEach(el => el.remove());
+
+        // Emit leave signal to server
+        if (matchRoom) {
+          socket.emit('leave_spectate', { matchId: matchRoom });
+        }
+
+        // Clean up physics and match state fully (prevents stale events from updating player HUD)
+        onMatchEnded();
+        if (window.hideSpectateOverlay) window.hideSpectateOverlay();
+
+        // Clear queen state so spectator session does not bleed into new match
+        waitingForCover = false;
+        queenPocketedBy = null;
+        queenPocketedThisShot = false;
+
+        // Restore controls
+        document.getElementById('controls').style.pointerEvents = 'auto';
+        document.getElementById('controls').classList.remove('disabled');
+        resetAimUI();
+
+        console.log('[CLIENT] exitSpectate executed, all spectator state cleared');
+
+        // Only navigate to lobby if not about to enter a match (opts.fromMatchStart suppresses navigation)
+        if (!opts.fromMatchStart) {
+          showScreen('lobbyPopup');
+          document.getElementById('ui').style.display = 'none';
+          document.getElementById('controls').style.display = 'none';
+        }
+      } catch (err) {
+        console.warn('exitSpectate error', err);
+      }
+    };
+
+    // PATCH C5: Red-dot / live-dot click → emit spectate_match with 1s debounce
+
+
+    socket.on("spectate_started", (data) => {
+      if (!data) return;
+      // if already in a different match context, ignore (prevents double-attaching)
+      const payloadId = data.matchId || data.matchRoom || null;
+      if (payloadId && matchRoom && payloadId !== matchRoom && payloadId !== `match_${matchRoom}`) return;
+      console.log("[SPECTATE] Started", data);
+
+      // C3: cancel any pending retries
+      if (typeof _spectatePending !== 'undefined' && _spectatePending[payloadId]) {
+        _spectatePending[payloadId].pending = false;
+        clearTimeout(_spectatePending[payloadId].timeoutId);
+      }
+
+      // C3: hide any spectator match-end popup (cleanup)
+      const specEndPopup = document.getElementById('spectatorEndPopup');
+      if (specEndPopup) specEndPopup.style.display = 'none';
+
+      // Set auth state NOW that server has confirmed
+      isSpectator = true;
+      myTurn = false;
+      isAuthoritative = false;
+      matchRoom = payloadId;
+      window.isSpectatingMatchId = payloadId;
+
+      // C5: Show game UI only after authoritative data arrives
+      showScreen("gameContainer");
+      hideGameUI();
+      document.getElementById('spectateBackBtn').style.display = 'block';
+
+      coins.forEach(c => World.remove(engine.world, c)); coins = [];
+      if (Array.isArray(data.boardState)) {
+        data.boardState.forEach(s => {
+          const px = (typeof s.x === 'number') ? (s.x * board) : 0;
+          const py = (typeof s.y === 'number') ? (s.y * board) : 0;
+          const c = createCoin(s.label, px, py);
+          Body.setStatic(c, true);
+          c.isSensor = true;
+        });
+      }
+      if (striker) { World.remove(engine.world, striker); striker = null; }
+
+      // C5: populate spectate HUD including scores
+      showSpectatorHUD(data);
+      if (data.scores) {
+        const sScore = document.getElementById('spectateScore');
+        if (sScore) sScore.innerText = `W:${data.scores.white || 0} B:${data.scores.black || 0}`;
+      }
+      if (typeof data.timeLeft !== 'undefined') {
+        const sTimer = document.getElementById("spectateTimer");
+        if (sTimer) sTimer.innerText = `Time Left: ${data.timeLeft}s`;
+      }
+      if (typeof data.spectatorCount !== 'undefined') {
+        const sCount = document.getElementById("spectatorCount");
+        if (sCount) sCount.innerText = `👥 ${data.spectatorCount} watching`;
+      }
+    });
+
+    socket.on("spectator_count_update", (data) => {
+      if (isSpectator && document.getElementById("spectatorCount")) {
+        document.getElementById("spectatorCount").innerText = `👥 ${data.count} watching`;
+      }
+    });
+    // NOTE: timer_update and match_ended handlers are defined earlier (unified handlers above)
+    // The duplicate versions have been removed to prevent double-firing.
+
+    window.addEventListener("beforeunload", () => {
+      if (matchRoom) {
+        socket.emit("leave_match", { matchId: matchRoom });
+      }
+    });
+
+    window.onload = () => {
+      // Auth check
+      checkSession();
+      showScreen("mainMenu");
+    };
+  </script>
+  <script id="spectate-client-retry">
+    /* CLIENT: robust spectate click with retries and ACK handling */
+    let _spectatePending = {}; // map matchId => { tries, timeoutId }
+
+    function requestSpectate(matchId) {
+      if (_spectatePending[matchId] && _spectatePending[matchId].pending) return;
+      _spectatePending[matchId] = _spectatePending[matchId] || { tries: 0, pending: true };
+
+      const btn = document.querySelector(`#spectateBtn_${matchId}`) || document.querySelector('.spectateBtn');
+      if (btn) { btn.disabled = true; btn.classList.add('pending'); }
+
+      function tryOnce() {
+        if (!_spectatePending[matchId]) return;
+        _spectatePending[matchId].tries++;
+        socket.emit('spectate_match', { matchId });
+
+        _spectatePending[matchId].timeoutId = setTimeout(() => {
+          if (_spectatePending[matchId].tries >= 3) {
+            _spectatePending[matchId].pending = false;
+            if (btn) { btn.disabled = false; btn.classList.remove('pending'); }
+            console.warn('spectate: giving up after 3 tries for', matchId);
+          } else {
+            tryOnce();
+          }
+        }, 900);
+      }
+      tryOnce();
+    }
+
+    socket.on('spectate_ack', ({ matchId }) => {
+      const entry = _spectatePending[matchId];
+      if (entry) {
+        entry.pending = false;
+        clearTimeout(entry.timeoutId);
+        const btn = document.querySelector(`#spectateBtn_${matchId}`) || document.querySelector('.spectateBtn');
+        if (btn) { btn.disabled = false; btn.classList.remove('pending'); }
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      // Find dot but ignore if it's currently pending
+      const dot = e.target.closest('.live-dot.live');
+      if (!dot) return;
+      const matchId = dot.dataset.matchId || dot.getAttribute('data-match-id');
+      if (!matchId) return;
+
+      requestSpectate(matchId);
+    });
+  </script>
+</body>
+
+</html>

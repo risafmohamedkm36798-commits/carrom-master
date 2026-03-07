@@ -1,0 +1,11 @@
+node_modules/
+.env
+npm-debug.log
+.DS_Store
+.cursor
+.antigravity
+.vscode
+.git
+*.log
+temp
+tmp
