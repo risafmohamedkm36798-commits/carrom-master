@@ -1,7 +1,9 @@
 ﻿require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
-const MongoStore = require('connect-mongo');
+const session = require('express-session');
+const MongoStorePkg = require('connect-mongo'); // defensive import
+const MongoStore = (MongoStorePkg && MongoStorePkg.default) ? MongoStorePkg.default : MongoStorePkg;
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const http = require("http");
@@ -152,23 +154,24 @@ mongoose.connection.once('open', async () => {
 
 const tournamentTimers = new Map(); // tournamentId -> { startTimer, endTimer }
 
-const session = require("express-session");
+// session setup (defensive)
 
 const app = express();
 app.use(cors({ origin: true, credentials: true })); // Allow credentials
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.set('trust proxy', 1);
+// session middleware (production-ready store)
 app.use(session({
   secret: process.env.SESSION_SECRET || 'dev-secret-change-me',
   resave: false,
   saveUninitialized: false,
-  store: MongoStore.create({
-    mongoUrl: process.env.MONGO_URI
-  }),
+  store: (typeof MongoStore.create === 'function' && process.env.MONGO_URI)
+    ? MongoStore.create({ mongoUrl: process.env.MONGO_URI })
+    : undefined,
   cookie: {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: (process.env.NODE_ENV === 'production'),
     maxAge: 24 * 60 * 60 * 1000
   }
 }));
@@ -1748,5 +1751,5 @@ app.get('/tournaments/waiting', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
+  console.log(`Server listening on ${PORT} (env NODE_ENV=${process.env.NODE_ENV})`);
 });
