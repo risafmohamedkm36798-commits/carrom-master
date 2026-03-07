@@ -1751,5 +1751,5 @@ app.get('/tournaments/waiting', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server listening on ${PORT} (env NODE_ENV=${process.env.NODE_ENV})`);
+  console.log("Server running on port " + PORT);
 });
