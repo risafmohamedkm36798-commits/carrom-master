@@ -7,25 +7,21 @@ const bcrypt = require("bcryptjs");
 const http = require("http");
 const { Server } = require("socket.io");
 const RedeemCode = require("./models/RedeemCode");
-// use environment variable for MongoDB connection
+// connect to MongoDB (do not call models yet)
 const MONGO_URI = process.env.MONGO_URI;
 if (!MONGO_URI) {
   console.error('FATAL: MONGO_URI env var is not set');
   process.exit(1);
 }
-mongoose.connect(process.env.MONGO_URI, { 
-  useNewUrlParser: true, 
-  useUnifiedTopology: true 
+mongoose.connect(MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
 })
-.then(() => {
-  console.log("✅ MongoDB Connected Successfully");
-  Tournament.find({ status: 'waiting' }).then(list => {
-    list.forEach(t => scheduleTournamentTimers(t._id));
+  .then(() => console.log("✅ MongoDB Connected Successfully"))
+  .catch((err) => {
+    console.error("❌ MongoDB Connection Failed:", err);
+    process.exit(1);
   });
-})
-.catch((err) => {
-  console.error("❌ MongoDB Connection Failed:", err);
-});
 
 // --- UTILITY: safeRunMatchOp (Mutex) ---
 // Run an async match operation only if not already running. If running, return false.
@@ -143,6 +139,17 @@ const tournamentSchema = new mongoose.Schema({
 
 const Tournament = mongoose.model("Tournament", tournamentSchema);
 
+// once the Tournament model exists and the DB connection is open, schedule tournaments
+mongoose.connection.once('open', async () => {
+  try {
+    const waiting = await Tournament.find({ status: 'waiting' });
+    waiting.forEach(t => scheduleTournamentTimers(t._id));
+    console.log(`[STARTUP] scheduled ${waiting.length} waiting tournaments`);
+  } catch (err) {
+    console.error('[STARTUP] error scheduling tournaments:', err);
+  }
+});
+
 const tournamentTimers = new Map(); // tournamentId -> { startTimer, endTimer }
 
 const session = require("express-session");
@@ -167,6 +174,10 @@ app.use(session({
 }));
 
 app.use(express.static(__dirname));
+
+app.get('/health', (req, res) => {
+  res.json({ ok: true, uptime: process.uptime(), now: Date.now() });
+});
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
