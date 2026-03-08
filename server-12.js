@@ -10,18 +10,20 @@ const http = require("http");
 const { Server } = require("socket.io");
 const RedeemCode = require("./models/RedeemCode");
 // connect to MongoDB (do not call models yet)
+// Load Mongo URI and connect (modern Mongoose; do not pass removed options)
 const MONGO_URI = process.env.MONGO_URI;
 if (!MONGO_URI) {
   console.error('FATAL: MONGO_URI env var is not set');
   process.exit(1);
 }
-mongoose.connect(MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
-  .then(() => console.log("✅ MongoDB Connected Successfully"))
+
+mongoose.connect(MONGO_URI)
+  .then(() => {
+    console.log("✅ MongoDB Connected Successfully");
+  })
   .catch((err) => {
     console.error("❌ MongoDB Connection Failed:", err);
+    // keep the process down so Render will show the error and you can debug
     process.exit(1);
   });
 
