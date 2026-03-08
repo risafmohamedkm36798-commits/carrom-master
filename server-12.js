@@ -159,6 +159,13 @@ const tournamentTimers = new Map(); // tournamentId -> { startTimer, endTimer }
 // session setup (defensive)
 
 const app = express();
+
+app.use(express.static(__dirname));
+
+app.get("/", (req, res) => {
+  res.sendFile(__dirname + "/ccpvp.html");
+});
+
 app.use(cors({ origin: true, credentials: true })); // Allow credentials
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -178,7 +185,7 @@ app.use(session({
   }
 }));
 
-app.use(express.static(__dirname));
+
 
 app.get('/health', (req, res) => {
   res.json({ ok: true, uptime: process.uptime(), now: Date.now() });
