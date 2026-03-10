@@ -159,7 +159,7 @@ const tournamentTimers = new Map(); // tournamentId -> { startTimer, endTimer }
 // session setup (defensive)
 
 const app = express();
-
+app.use(express.static("public"));
 app.use(express.static(__dirname));
 
 app.get("/", (req, res) => {
