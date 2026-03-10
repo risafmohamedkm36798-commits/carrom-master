@@ -2477,7 +2477,7 @@
         return;
       }
 
-      const res = await fetch("http://192.168.31.226:3000/register", {
+      const res = await fetch("/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -2504,7 +2504,7 @@
         return;
       }
 
-      const res = await fetch("http://192.168.31.226:3000/login", {
+      const res = await fetch("/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -2567,7 +2567,7 @@
 
     async function checkSession() {
       try {
-        const res = await fetch("http://192.168.31.226:3000/check-auth", { credentials: "include" });
+        const res = await fetch("/check-auth", { credentials: "include" });
         const data = await res.json();
         if (data.loggedIn) {
           currentUser = data.user;
@@ -2623,7 +2623,7 @@
     };
 
     async function openMyLobby() {
-      const res = await fetch(`http://192.168.31.226:3000/my-tournament/${currentUser.playerId}`, { credentials: "include" });
+      const res = await fetch(`/my-tournament/${currentUser.playerId}`, { credentials: "include" });
       const data = await res.json();
 
       if (!data.success) {
@@ -2654,7 +2654,7 @@
       const startTime = new Date(start).toISOString();
       const endTime = new Date(new Date(start).getTime() + parseInt(duration) * 60000).toISOString();
 
-      const res = await fetch("http://192.168.31.226:3000/create-tournament", {
+      const res = await fetch("/create-tournament", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -2730,7 +2730,7 @@
     }
 
     window.joinTournamentId = async (id) => {
-      const res = await fetch("http://192.168.31.226:3000/join-tournament", {
+      const res = await fetch("/join-tournament", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
