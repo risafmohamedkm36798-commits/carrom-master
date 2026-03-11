@@ -2148,7 +2148,44 @@
         matchEl.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
       }
     });
+// SERVER tells this socket explicitly when it's your turn
+socket.on('yourTurn', (data) => {
+  if (!data || data.matchId !== matchRoom) return;
+  console.log('[CLIENT] yourTurn', data);
+  // hide resolving / sync UI
+  waitingForServer = false;
+  document.getElementById('sync-overlay').style.display = 'none';
+  showSpinner(false);
 
+  // mark local myTurn based on playerId
+  myTurn = (data.nextShooterPlayerId === currentPlayerId) || (data.nextShooterPlayerId === myPlayerId);
+  // spawn striker for this player if necessary
+  spawnStriker(); // spawnStriker derives based on myTurn/myRole
+});
+
+// Generic authoritative board update
+socket.on('boardState', (data) => {
+  if (!data || data.matchId !== matchRoom) return;
+  if (data.seq && data.seq < currentTurnSeq) return;
+  console.log('[CLIENT] authoritative boardState', data);
+  // hide resolving UI
+  waitingForServer = false;
+  document.getElementById('sync-overlay').style.display = 'none';
+  showSpinner(false);
+
+  // update local board from server snapshot (implement restoreBoardFromSnapshot)
+  if (Array.isArray(data.boardState)) {
+    restoreBoardFromSnapshot(data.boardState); // implement or reuse existing restore logic
+  }
+  // update scores UI
+  if (data.scores) {
+    if (psEl) psEl.textContent = String(data.scores[myRole] || 0);
+    if (bsEl) bsEl.textContent = String(data.scores[myRole === 'white' ? 'black' : 'white'] || 0);
+  }
+
+  // update turn sequence / spawn striker for current shooter
+  currentTurnSeq = data.seq || currentTurnSeq;
+});
     // ══════════════════════════════════════════════════════════════════
     //  SOCKET: MATCH ENDED (server cleanup signal — clears local state)
     //  Handles BOTH player and spectator match-end in one handler
