@@ -781,7 +781,40 @@ io.on("connection", (socket) => {
 
     console.log(`[TOURNAMENT_READY] ${playerId} ready. Total ready: ${readyPlayers.length}`);
 
-    if (readyPlayers.length < 2) {
+    if (readyPlayers.length < 2) 
+    // --- START: Defensive start-match guard (paste below your TOURNAMENT_READY log) ---
+try {
+  console.log("[DEBUG] readyPlayers:", Array.isArray(readyPlayers) ? readyPlayers.map(p=>p.id || p) : readyPlayers);
+  console.log("[DEBUG] matchRoom value:", typeof matchRoom !== 'undefined' ? matchRoom : 'UNDEFINED');
+
+  // sanity: set requiredPlayers to 2 (or read from tournament config)
+  const requiredPlayers = (tournament && tournament.capacity && tournament.capacity >= 2) ? 2 : 2;
+
+  if (Array.isArray(readyPlayers) && readyPlayers.length >= requiredPlayers) {
+    console.log("[MATCH_STARTING] readyPlayers reached", readyPlayers.length, "-> creating/starting match for room:", matchRoom);
+
+    try {
+      // Ensure startMatch exists and call it safely
+      if (typeof startMatch === "function") {
+        await startMatch(matchRoom); // if startMatch is async
+      } else if (typeof createMatch === "function") {
+        // some codebases use createMatch then startMatch
+        const newMatch = await createMatch(matchRoom, readyPlayers);
+        if (newMatch && typeof startMatch === "function") await startMatch(newMatch.id || matchRoom);
+      } else {
+        console.error("[MATCH_STARTING_ERR] No startMatch/createMatch function found");
+      }
+    } catch (err) {
+      console.error("[MATCH_START_FAILED]", err && err.stack ? err.stack : err);
+      // emit error to clients so UI doesn't wait forever
+      try { io.to(matchRoom).emit('serverError', { message: 'Failed to start match, server error' }); } catch(e){}
+    }
+  }
+} catch (outerErr) {
+  console.error("[TOURNAMENT_READY_DEBUG_ERR]", outerErr && outerErr.stack ? outerErr.stack : outerErr);
+}
+// --- END: Defensive start-match guard --- 
+    {
       return; // Do nothing
     }
 
