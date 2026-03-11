@@ -781,42 +781,59 @@ io.on("connection", (socket) => {
 
     console.log(`[TOURNAMENT_READY] ${playerId} ready. Total ready: ${readyPlayers.length}`);
 
-    if (readyPlayers.length < 2) 
-    // --- START: Defensive start-match guard (paste below your TOURNAMENT_READY log) ---
+    if (readyPlayers.length < 2) {
+      return;
+    }
+// === Defensive match-start guard (safe: does not assume matchRoom exists) ===
 try {
-  console.log("[DEBUG] readyPlayers:", Array.isArray(readyPlayers) ? readyPlayers.map(p=>p.id || p) : readyPlayers);
-  console.log("[DEBUG] matchRoom value:", typeof matchRoom !== 'undefined' ? matchRoom : 'UNDEFINED');
+  // try to derive a reliable room id using any available variable names
+  let roomId = null;
 
-  // sanity: set requiredPlayers to 2 (or read from tournament config)
-  const requiredPlayers = (tournament && tournament.capacity && tournament.capacity >= 2) ? 2 : 2;
+  if (typeof tournamentId !== 'undefined' && tournamentId) roomId = tournamentId;
+  else if (typeof room !== 'undefined' && room) roomId = room;
+  else if (typeof matchRoom !== 'undefined' && matchRoom) roomId = matchRoom;
+  else if (typeof match_id !== 'undefined' && match_id) roomId = match_id;
+  else if (typeof tournament !== 'undefined' && tournament && tournament._id) roomId = String(tournament._id);
 
-  if (Array.isArray(readyPlayers) && readyPlayers.length >= requiredPlayers) {
-    console.log("[MATCH_STARTING] readyPlayers reached", readyPlayers.length, "-> creating/starting match for room:", matchRoom);
+  console.log("[DEBUG] readyPlayers:", Array.isArray(readyPlayers) ? readyPlayers.map(p => (p && (p.playerId || p.playerId || p)) ) : readyPlayers);
+  console.log("[DEBUG] derived roomId:", roomId);
 
-    try {
-      // Ensure startMatch exists and call it safely
-      if (typeof startMatch === "function") {
-        await startMatch(matchRoom); // if startMatch is async
-      } else if (typeof createMatch === "function") {
-        // some codebases use createMatch then startMatch
-        const newMatch = await createMatch(matchRoom, readyPlayers);
-        if (newMatch && typeof startMatch === "function") await startMatch(newMatch.id || matchRoom);
-      } else {
-        console.error("[MATCH_STARTING_ERR] No startMatch/createMatch function found");
+  const REQUIRED_READY = 2; // change if your tournament needs >2 players
+
+  if (Array.isArray(readyPlayers) && readyPlayers.length >= REQUIRED_READY) {
+    if (!roomId) {
+      console.error("[MATCH_START_ERR] Cannot determine roomId - aborting start. readyPlayers:", readyPlayers);
+      // Notify clients so UI doesn't hang
+      try {
+        const notifySocket = (readyPlayers[0] && readyPlayers[0].socket) || null;
+        if (notifySocket && io.sockets.sockets.get(notifySocket)) {
+          io.to(notifySocket).emit('serverError', { message: 'Server cannot start match: missing room id' });
+        }
+      } catch (e) {}
+    } else {
+      console.log("[MATCH_STARTING] readyPlayers reached", readyPlayers.length, "-> starting match for room:", roomId);
+      try {
+        // Prefer existing server functions; call safely (support both sync/async implementations)
+        if (typeof startMatch === "function") {
+          await startMatch(roomId);
+        } else if (typeof createMatch === "function") {
+          const newMatch = await createMatch(roomId, readyPlayers);
+          if (newMatch && typeof startMatch === "function") await startMatch(newMatch.id || roomId);
+        } else {
+          // fallback: if your code creates matches inline for rooms, call the inline routine
+          console.error("[MATCH_STARTING_ERR] No startMatch/createMatch function found");
+          try { io.to(roomId).emit('serverError', { message: 'Server missing match start handler' }); } catch(e){}
+        }
+      } catch (err) {
+        console.error("[MATCH_START_FAILED]", err && err.stack ? err.stack : err);
+        try { io.to(roomId).emit('serverError', { message: 'Failed to start match, server error' }); } catch(e){}
       }
-    } catch (err) {
-      console.error("[MATCH_START_FAILED]", err && err.stack ? err.stack : err);
-      // emit error to clients so UI doesn't wait forever
-      try { io.to(matchRoom).emit('serverError', { message: 'Failed to start match, server error' }); } catch(e){}
     }
   }
 } catch (outerErr) {
   console.error("[TOURNAMENT_READY_DEBUG_ERR]", outerErr && outerErr.stack ? outerErr.stack : outerErr);
 }
-// --- END: Defensive start-match guard --- 
-    {
-      return; // Do nothing
-    }
+    
 
     // ── Step 4: ATOMIC claim — un-ready both players together ───────
     // Only one handler can win this race; the loser gets null back
