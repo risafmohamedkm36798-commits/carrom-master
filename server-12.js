@@ -1096,6 +1096,16 @@ try {
 
 
   socket.on("endTurn", async (payload) => {
+    console.log('[END_TURN_RECV]', { socketId: socket.id, payload: payload, timestamp: Date.now() });
+    const match = matches[payload && payload.matchRoom];
+console.log('[END_TURN_MATCH_MAP]', {
+  matchRoom: payload && payload.matchRoom,
+  matchExists: !!match,
+  playersArray: match ? match.players : null,
+  playerSocketsMap: match ? match.playerSockets : null,
+  currentShooterPlayerId: match ? match.currentShooterPlayerId : null,
+  currentShooterSocket: match ? match.currentShooterSocket : null
+});
     const { matchRoom, playerId } = payload;
     const match = matches[matchRoom];
     if (!match) return;
