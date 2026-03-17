@@ -1468,6 +1468,26 @@
           lastLiveEmit = now;
           // EMIT normalized coordinates (0..1) so opponents with different canvas sizes render correctly
           socket.emit('liveUpdate', {
+            // ---- START: authoritative endTurn emit (paste directly after liveUpdate emit) ----
+try {
+  const endTurnPayload = {
+    matchRoom: typeof matchRoom !== 'undefined' ? matchRoom : (window.matchId || null),
+    playerId: typeof myPlayerId !== 'undefined' ? myPlayerId : (window.playerId || null),
+    boardState: (coins || []).map(c => ({ label: c.label, x: (c.position.x / board), y: (c.position.y / board), id: c.id || undefined })),
+    flags: {
+      // if you already set these booleans elsewhere, keep them; otherwise leave false
+      strikerPocketed: !!(typeof strikerPocketedThisShot !== 'undefined' && strikerPocketedThisShot),
+      directFoul: false,
+      queenPocketedThisShot: !!(typeof queenPocketedThisShot !== 'undefined' && queenPocketedThisShot),
+      coverThisShot: false
+    }
+  };
+  console.log('[CLIENT] emitting endTurn', endTurnPayload);
+  socket.emit('endTurn', endTurnPayload);
+} catch (err) {
+  console.error('[CLIENT] failed to emit endTurn', err);
+}
+// ---- END authoritative endTurn emit ----
             matchRoom,
             state: {
               coins: coins.map(c => ({ label: c.label, x: c.position.x / board, y: c.position.y / board })),
