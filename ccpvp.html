@@ -1488,7 +1488,13 @@ socket.on("connect", () => {
           lastLiveEmit = now;
           // EMIT normalized coordinates (0..1) so opponents with different canvas sizes render correctly
           socket.emit('liveUpdate', {
-            // ---- START: authoritative endTurn emit (paste directly after liveUpdate emit) ----
+            matchRoom,
+            state: {
+              coins: coins.map(c => ({ label: c.label, x: c.position.x / board, y: c.position.y / board })),
+              striker: striker ? { x: striker.position.x / board, y: striker.position.y / board } : null
+            }
+          });
+          // ---- START: authoritative endTurn emit (paste directly after liveUpdate emit) ----
 try {
   const endTurnPayload = {
     matchRoom: typeof matchRoom !== 'undefined' ? matchRoom : (window.matchId || null),
@@ -1508,12 +1514,6 @@ try {
   console.error('[CLIENT] failed to emit endTurn', err);
 }
 // ---- END authoritative endTurn emit ----
-            matchRoom,
-            state: {
-              coins: coins.map(c => ({ label: c.label, x: c.position.x / board, y: c.position.y / board })),
-              striker: striker ? { x: striker.position.x / board, y: striker.position.y / board } : null
-            }
-          });
         }
       }
 
