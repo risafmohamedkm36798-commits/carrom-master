@@ -1970,12 +1970,17 @@ try {
 
       if (striker) { World.remove(engine.world, striker); striker = null; }
       if (nextShooterRole) {
-        spawnStriker(nextShooterRole);
-        slider.disabled = true;
-        if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
-        myTurn = (nextShooterRole === myRole);
-        turnEl.textContent = myTurn ? 'YOUR TURN' : 'OPPONENT TURN';
-      }
+  // determine whether it's my turn first
+  myTurn = (nextShooterRole === myRole);
+  // set UI text
+  turnEl.textContent = myTurn ? 'YOUR TURN' : 'OPPONENT TURN';
+  // clear previous timer (if any)
+  if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
+  // spawn striker for the role the server wants to move
+  spawnStriker(nextShooterRole);
+  // enable slider only if it's my turn
+  slider.disabled = !myTurn;
+  }
     });
 
     // ══════════════════════════════════════════════════════════════════
@@ -1999,6 +2004,7 @@ try {
       turnEl.textContent = 'YOUR TURN';
 
       spawnStriker(myRole);
+      slider.disabled = false;
       const secs = (data && data.turnSeconds) ? data.turnSeconds : 15;
       startTurnTimer(secs);
     });
