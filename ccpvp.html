@@ -992,20 +992,40 @@
     //  SOCKET
     // ══════════════════════════════════════════════════════════════════
     const socket = io("https://carrom-master.onrender.com", {
-      transports: ["websocket"]
-    });
-    socket.on("connect", () => console.log("[SOCKET] connected:", socket.id));
+  transports: ["websocket"]
+});
 
-    function showScreen(id) {
-      document.querySelectorAll(".screen").forEach(el => {
-        el.classList.remove("active");
-      });
+// ← REPLACE the single-line connect handler with this block:
+socket.on("connect", () => {
+  console.log("[SOCKET] connected:", socket.id);
 
-      const target = document.getElementById(id);
-      if (target) {
-        target.classList.add("active");
-      }
+  // Try to rebind this socket to the player's server match entry (if any)
+  try {
+    // 1) Prefer in-memory variable if available (myPlayerId)
+    // 2) Otherwise fall back to localStorage 'player' object
+    const saved = localStorage.getItem('player');
+    const parsed = saved ? JSON.parse(saved) : null;
+
+    // adjust variable names if your client uses different names
+    const pid = (typeof myPlayerId !== 'undefined' && myPlayerId) ? myPlayerId
+               : (parsed && (parsed.playerId || parsed.player_id || parsed.id)) ? (parsed.playerId || parsed.player_id || parsed.id)
+               : null;
+
+    // also send matchRoom if client already has it
+    const room = (typeof matchRoom !== 'undefined' && matchRoom) ? matchRoom : (window.matchRoom || null);
+
+    if (pid) {
+      // emit reconnect payload; server should rebind socket.id -> playerId
+      socket.emit('reconnectMatch', { playerId: pid, matchRoom: room });
+      console.log('[CLIENT] reconnectMatch emitted', { playerId: pid, matchRoom: room });
+    } else {
+      console.log('[CLIENT] no playerId found in memory/localStorage; skipping reconnectMatch');
     }
+  } catch (err) {
+    console.warn('[CLIENT] reconnectMatch error', err);
+  }
+});
+// end connect handler
 
     // ══════════════════════════════════════════════════════════════════
     //  MULTIPLAYER STATE
