@@ -367,7 +367,10 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
           match.queenPocketedTurnId = Date.now();
 
           match.turnSeq = (match.turnSeq || 0) + 1;
+          // set lastUpdated timestamp for watchdog & diagnostics
+try { match.lastUpdated = new Date(); } catch(e) {}
           emitToMatchRooms(matchRoom, 'boardState', { boardState: match.boardState, scores: match.scores, matchId: matchRoom, seq: match.turnSeq });
+          console.log('[PROCESS_EMIT]', { matchRoom, seq: match.turnSeq, nextShooter: match.currentShooterPlayerId, scores: match.scores });
           emitToMatchRooms(matchRoom, 'queen_pocketed', { matchId: matchRoom, playerId: shooterPlayerId, seq: match.turnSeq });
 
           // explicitly assign shooter as next shooter (extra turn)
