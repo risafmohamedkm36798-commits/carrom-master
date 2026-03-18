@@ -87,6 +87,7 @@ function clearTurnTimeout(matchRoom) {
 function emitBoardState(match, matchRoom) {
   match.turnSeq = (match.turnSeq || 0) + 1;
   const shooterPid = match.currentShooterPlayerId;
+  try { match.lastUpdated = new Date(); } catch(e) {}
   emitToMatchRooms(matchRoom, 'boardState', {
     boardState: match.boardState || [],
     scores: match.scores || { white: 0, black: 0 },
@@ -95,6 +96,7 @@ function emitBoardState(match, matchRoom) {
     nextShooterPlayerId: shooterPid,
     nextShooterRole: match.roleByPlayer ? match.roleByPlayer[shooterPid] : null
   });
+  console.log('[PROCESS_EMIT]', { matchRoom, seq: match.turnSeq, nextShooter: match.currentShooterPlayerId, scores: match.scores });
 }
 
 const userSchema = new mongoose.Schema({
@@ -368,9 +370,8 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
 
           match.turnSeq = (match.turnSeq || 0) + 1;
           // set lastUpdated timestamp for watchdog & diagnostics
-try { match.lastUpdated = new Date(); } catch(e) {}
-          emitToMatchRooms(matchRoom, 'boardState', { boardState: match.boardState, scores: match.scores, matchId: matchRoom, seq: match.turnSeq });
-          console.log('[PROCESS_EMIT]', { matchRoom, seq: match.turnSeq, nextShooter: match.currentShooterPlayerId, scores: match.scores });
+
+          emitToMatchRooms(matchRoom, 'boardState', { boardState: match.boardState, scores: match.scores, matchId: matchRoom, seq: match.turnSeq })
           emitToMatchRooms(matchRoom, 'queen_pocketed', { matchId: matchRoom, playerId: shooterPlayerId, seq: match.turnSeq });
 
           // explicitly assign shooter as next shooter (extra turn)
