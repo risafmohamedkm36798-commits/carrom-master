@@ -798,7 +798,7 @@
     <h1 id="gameTitle" style="position: absolute; top: 12svh;">CARROM<br>MASTER PVP</h1>
 
     <!-- Buttons in middle (Flex container handles centering) -->
-    <button class="menu-btn" onclick="startPractice()">PRACTICE</button>
+    <button id="practiceBtn" class="menu-btn" type="button">PRACTICE</button>
     <button id="tournamentBtn" class="menu-btn">TOURNAMENT</button>
 
     <!-- Settings below buttons -->
@@ -1762,9 +1762,10 @@ try {
     //  START PRACTICE
     // ══════════════════════════════════════════════════════════════════
     function startPractice() {
-      isMultiplayer = false;
-      isGameActive = true;
-      showScreen("gameContainer");
+  if (typeof closeTournamentModal === 'function') closeTournamentModal();
+  isMultiplayer = false;
+  isGameActive = true;
+  showScreen("gameContainer");
 
       myRole = null; myTurn = false;
       document.getElementById('ui').style.display = 'flex';
@@ -2687,14 +2688,18 @@ socket.on('boardState', (data) => {
       document.getElementById("createSection").classList.add("hidden");
       loadTournaments();
     };
+    document.getElementById("practiceBtn").addEventListener("click", () => {
+  if (typeof closeTournamentModal === 'function') closeTournamentModal();
+  startPractice();
+});
 
-    document.getElementById("tournamentBtn").onclick = async () => {
-      if (!currentUser) {
-        alert("Please login first");
-        return;
-      }
-      showScreen("tournamentPopup");
-    };
+    document.getElementById("tournamentBtn").addEventListener("click", () => {
+  if (!currentUser) {
+    alert("Please login first");
+    return;
+  }
+  showTournamentModal();
+});
 
     window.openCreate = () => {
       showScreen("createTournamentPopup");
