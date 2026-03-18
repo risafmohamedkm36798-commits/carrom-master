@@ -483,11 +483,8 @@ function endMatchCleanup(matchRoom) {
   emitToMatchRooms(matchRoom, 'match_ended', { matchId: matchRoom });
 
   setTimeout(() => {
-    if (matches[matchRoom]) {
-      delete matches[matchRoom];
-      console.log(`[CLEANUP] match: ${matchRoom} deleted path`);
-    }
-  }, 15000);
+  safeRunMatchOp(match, async () => { await processEndTurn(matchRoom, { auto: true }, null); });
+}, 15000);
 }
 
 io.on("connection", (socket) => {
