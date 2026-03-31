@@ -2689,16 +2689,20 @@ socket.on('boardState', (data) => {
   
 
   window.openPracticeFromMenu = function () {
-  if (typeof closeTournamentModal === 'function') closeTournamentModal();
-  startPractice();
+  console.log("[MENU] Practice clicked");
+  if (typeof closeTournamentModal === "function") closeTournamentModal();
+  showScreen("gameContainer");
 };
 
+
 window.openTournamentFromMenu = function () {
+  
+console.log("[MENU] Tournament clicked");
   if (!currentUser) {
     alert("Please login first");
     return;
   }
-  showTournamentModal();
+  showScreen("tournamentPopup");
 };
 
     window.openCreate = () => {
