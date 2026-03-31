@@ -996,6 +996,7 @@
 // ← REPLACE the single-line connect handler with this block:
 socket.on("connect", () => {
   console.log("[SOCKET] connected:", socket.id);
+  
 
   // Try to rebind this socket to the player's server match entry (if any)
   try {
