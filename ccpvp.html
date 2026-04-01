@@ -2703,8 +2703,7 @@
 
         window.openPracticeFromMenu = function () {
             console.log("[MENU] Practice clicked");
-            if (typeof closeTournamentModal === "function") closeTournamentModal();
-            showScreen("gameContainer");
+            startPractice();
         };
 
 
