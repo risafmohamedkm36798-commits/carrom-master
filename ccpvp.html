@@ -1640,9 +1640,17 @@
             // Final board snapshot (normalized 0..1 scale)
             const finalBoard = coins.map(c => ({ label: (c.label || '').toString().toLowerCase(), x: c.position.x / board, y: c.position.y / board }));
 
-            const _savedUser = JSON.parse(localStorage.getItem('player') || '{}');
-            const _myPlayerId = (_savedUser && _savedUser.playerId) ? _savedUser.playerId : myPlayerId;
+            const _savedUser = JSON.parse(localStorage.getItem('player') || 'null');
+            const _myPlayerId =
+            (window.myPlayerId) ||
+            (_savedUser && _savedUser.playerId) ||
+            (window.currentPlayerId) ||
+            null;
 
+       if (!_myPlayerId) {
+          console.error('[CLIENT] missing playerId, cannot end turn safely');
+          return;
+        }
             // CLIENT: build authoritative flags before socket.emit('endTurn', ...)
             const normalizedCoinsPocketed = (coinsPocketedThisShot || []).map(c => {
                 const lbl = (c && (c.label || '')).toString().toLowerCase();
@@ -2523,8 +2531,11 @@
             const data = await res.json();
 
             if (data.success) {
-                currentUser = data.user;
-                showProfile(data.user);
+               currentUser = data.user;
+               localStorage.setItem("player", JSON.stringify(data.user));
+               window.myPlayerId = data.user.playerId;
+               window.currentPlayerId = data.user.playerId;
+               showProfile(data.user);
             } else {
                 alert(data.message);
             }
@@ -2549,8 +2560,11 @@
             const data = await res.json();
 
             if (data.success) {
-                currentUser = data.user;
-                showProfile(data.user);
+               currentUser = data.user;
+               localStorage.setItem("player", JSON.stringify(data.user));
+               window.myPlayerId = data.user.playerId;
+               window.currentPlayerId = data.user.playerId;
+               showProfile(data.user);
             } else {
                 alert(data.message);
             }
@@ -2563,6 +2577,9 @@
 
         function showProfile(user) {
             // Hide auth inputs
+            localStorage.setItem("player", JSON.stringify(user));
+            window.myPlayerId = user.playerId;
+            window.currentPlayerId = user.playerId;
             authName.style.display = "none";
             authEmail.style.display = "none";
             authPassword.style.display = "none";
@@ -2795,10 +2812,10 @@
         };
 
         document.getElementById("searchTournament").addEventListener("input", function () {
-            const value = this.value.toLowerCase();
-            const items = document.querySelectorAll("#tournamentList div");
-            items.forEach(item => {
-                item.style.display = item.innerText.toLowerCase().includes(value) ? "block" : "none";
+            const value = String(this.value || "").toLowerCase();
+items.forEach(item => {
+  const text = String(item.innerText || "").toLowerCase();
+  item.style.display = text.includes(value) ? "block" : "none";
             });
         });
 

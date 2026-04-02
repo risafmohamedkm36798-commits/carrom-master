@@ -1129,7 +1129,13 @@ socket.on("endTurn", async (payload) => {
       socket.emit('endTurnRejected', { reason: 'socket_not_in_match', matchRoom });
       return;
     }
-
+    console.log('[END_TURN_DEBUG]', {
+     socketId: socket.id,
+     payloadPlayerId: playerId,
+     currentShooterId,
+     matchRoom,
+     currentTurnSeq: match.turnSeq
+   });
     // authoritative check: only current shooter can send endTurn for this turn
     const currentShooterId = match.currentShooterPlayerId;
     if (playerId !== currentShooterId) {
@@ -1514,7 +1520,16 @@ function checkTournamentStatus(tournament) {
     tournament.status = 'ended';
   }
 }
-
+app.get("/tournaments/status/:id", async (req, res) => {
+  try {
+    const tournament = await Tournament.findById(req.params.id);
+    if (!tournament) return res.status(404).json({ success: false, message: "Tournament not found" });
+    return res.json({ success: true, tournament });
+  } catch (err) {
+    console.error("[tournaments/status] error", err);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+});
 app.get("/get-tournaments", async (req, res) => {
   try {
     const tournaments = await Tournament.find({});
