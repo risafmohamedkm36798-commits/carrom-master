@@ -1129,6 +1129,7 @@ socket.on("endTurn", async (payload) => {
       socket.emit('endTurnRejected', { reason: 'socket_not_in_match', matchRoom });
       return;
     }
+    const currentShooterId = match.currentShooterPlayerId;
     console.log('[END_TURN_DEBUG]', {
      socketId: socket.id,
      payloadPlayerId: playerId,
@@ -1137,13 +1138,14 @@ socket.on("endTurn", async (payload) => {
      currentTurnSeq: match.turnSeq
    });
     // authoritative check: only current shooter can send endTurn for this turn
-    const currentShooterId = match.currentShooterPlayerId;
-    if (playerId !== currentShooterId) {
-      console.warn('[REJECT endTurn] mismatch. sender:', playerId, 'expected:', currentShooterId);
+    
+    const senderPlayerId = playerId || match.playersWithIds?.[socket.id] || null;
+
+    if (!senderPlayerId || senderPlayerId !== currentShooterId) {
+      console.warn(`[REJECT endTurn] mismatch. sender:${senderPlayerId} expected:${currentShooterId}`);
       socket.emit('endTurnRejected', { reason: 'not_current_shooter', expected: currentShooterId, seq: match.turnSeq });
       return;
-    }
-
+     }
     // run end-turn processing safely to avoid concurrent updates
     const ok = await safeRunMatchOp(match, async () => {
       // handleEndTurn (existing function) will call processEndTurn internally

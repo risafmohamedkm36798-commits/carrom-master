@@ -2619,8 +2619,11 @@
                 const res = await fetch("/check-auth", { credentials: "include" });
                 const data = await res.json();
                 if (data.loggedIn) {
-                    currentUser = data.user;
-                    showProfile(data.user);
+                   currentUser = data.user;
+                   localStorage.setItem("player", JSON.stringify(data.user));
+                   window.myPlayerId = data.user.playerId;
+                   window.currentPlayerId = data.user.playerId;
+                   showProfile(data.user);
                 } else {
                     currentUser = null;
                     showAuthForm();
@@ -2813,9 +2816,9 @@
 
         document.getElementById("searchTournament").addEventListener("input", function () {
             const value = String(this.value || "").toLowerCase();
-items.forEach(item => {
-  const text = String(item.innerText || "").toLowerCase();
-  item.style.display = text.includes(value) ? "block" : "none";
+            items.forEach(item => {
+              const text = String(item.innerText || "").toLowerCase();
+              item.style.display = text.includes(value) ? "block" : "none";
             });
         });
 
