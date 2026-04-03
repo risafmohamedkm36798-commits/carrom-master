@@ -2000,26 +2000,25 @@
         // ══════════════════════════════════════════════════════════════════
         // PATCH C3: yourTurn — spawn striker + enable input, clear overlay
         socket.on('yourTurn', (data) => {
-            if (data && data.matchId && data.matchId !== matchRoom) return;
-            if (isSpectator) return;
+          if (!data || data.matchId !== matchRoom) return;
+          if (data.seq && data.seq < currentTurnSeq) return;
+          if (data.seq) currentTurnSeq = data.seq;
+          if (isSpectator) return;
 
-            if (data.seq && data.seq < currentTurnSeq) return;
-            if (data.seq) currentTurnSeq = data.seq;
+         clearWaitingOverlay();
 
-            clearWaitingOverlay();
+         myTurn = (data.nextShooterPlayerId === window.myPlayerId);
+         isAuthoritative = true;
+         endTurnSent = false;
+         turn = 'player';
+         turnEl.textContent = 'YOUR TURN';
 
-            console.log('[CLIENT] yourTurn received - enabling authority');
-            myTurn = true;
-            isAuthoritative = true;
-            endTurnSent = false;
-            turn = 'player';
-            turnEl.textContent = 'YOUR TURN';
+        spawnStriker(myRole);
+        slider.disabled = false;
 
-            spawnStriker(myRole);
-            slider.disabled = false;
-            const secs = (data && data.turnSeconds) ? data.turnSeconds : 15;
-            startTurnTimer(secs);
-        });
+        const secs = data.turnSeconds || 15;
+        startTurnTimer(secs);
+      });
 
         socket.on('turnPending', (data) => {
             if (data && data.matchId && data.matchId !== matchRoom) return;

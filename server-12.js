@@ -1099,66 +1099,56 @@ try {
   // --- start replacement: robust endTurn handler ---
 socket.on("endTurn", async (payload) => {
   try {
-    console.log('[END_TURN_RECV]', { socketId: socket.id, payload: payload, timestamp: Date.now() });
+    console.log('[END_TURN_RECV]', { socketId: socket.id, payload, timestamp: Date.now() });
 
-    // safe destructure
     const { matchRoom, playerId } = payload || {};
     if (!matchRoom) {
-      console.warn('[END_TURN] missing matchRoom in payload', payload);
+      socket.emit('endTurnRejected', { reason: 'missing_matchRoom' });
       return;
     }
 
     const match = matches[matchRoom];
-    console.log('[END_TURN_MATCH_MAP]', {
-      matchRoom,
-      matchExists: !!match,
-      playersArray: match ? match.players : null,
-      playerSocketsMap: match ? match.playerSockets : null,
-      currentShooterPlayerId: match ? match.currentShooterPlayerId : null
-    });
-
     if (!match) {
-      // unknown match: ignore
+      socket.emit('endTurnRejected', { reason: 'match_not_found', matchRoom });
       return;
     }
 
-    // match.players is an array of socketIds (server uses socketId list when creating match)
     if (!Array.isArray(match.players) || !match.players.includes(socket.id)) {
-      console.warn('[END_TURN] socket not in match.players for matchRoom', { matchRoom, socketId: socket.id });
-      // do not crash — silently ignore or optionally inform client
       socket.emit('endTurnRejected', { reason: 'socket_not_in_match', matchRoom });
       return;
     }
+
     const currentShooterId = match.currentShooterPlayerId;
-    console.log('[END_TURN_DEBUG]', {
-     socketId: socket.id,
-     payloadPlayerId: playerId,
-     currentShooterId,
-     matchRoom,
-     currentTurnSeq: match.turnSeq
-   });
-    // authoritative check: only current shooter can send endTurn for this turn
-    
+
     const senderPlayerId = playerId || match.playersWithIds?.[socket.id] || null;
+    console.log('[END_TURN_DEBUG]', {
+      socketId: socket.id,
+      payloadPlayerId: playerId,
+      senderPlayerId,
+      currentShooterId,
+      matchRoom,
+      currentTurnSeq: match.turnSeq
+    });
 
     if (!senderPlayerId || senderPlayerId !== currentShooterId) {
-      console.warn(`[REJECT endTurn] mismatch. sender:${senderPlayerId} expected:${currentShooterId}`);
-      socket.emit('endTurnRejected', { reason: 'not_current_shooter', expected: currentShooterId, seq: match.turnSeq });
+      socket.emit('endTurnRejected', {
+        reason: 'not_current_shooter',
+        expected: currentShooterId,
+        seq: match.turnSeq
+      });
       return;
-     }
-    // run end-turn processing safely to avoid concurrent updates
+    }
+
     const ok = await safeRunMatchOp(match, async () => {
-      // handleEndTurn (existing function) will call processEndTurn internally
       await handleEndTurn(match, payload, socket);
     });
 
     if (!ok) {
-      console.warn('[END_TURN] safeRunMatchOp skipped processing (already processing?)', { matchRoom });
-      socket.emit('endTurnRejected', { reason: 'server_busy' });
+      socket.emit('endTurnRejected', { reason: 'server_busy', seq: match.turnSeq });
     }
   } catch (err) {
-    console.error('[END_TURN_HANDLER_ERR]', err && err.stack ? err.stack : err);
-    try { socket.emit('serverError', { message: 'Server error processing endTurn' }); } catch(e){}
+    console.error('[END_TURN_HANDLER_ERR]', err);
+    socket.emit('serverError', { message: 'Server error processing endTurn' });
   }
 });
 // --- end replacement ---
