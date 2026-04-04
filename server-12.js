@@ -74,7 +74,7 @@ function startTurnTimeout(matchRoom, ms = 15000) {
   if (!match) return;
   if (match.turnTimer) { clearTimeout(match.turnTimer); match.turnTimer = null; }
   match.turnTimer = setTimeout(() => {
-    safeRunMatchOp(match, async () => { await processEndTurn(matchRoom, { auto: true }, null); });
+    processEndTurn(matchRoom, { auto: true }, null);
   }, ms);
 }
 
@@ -442,7 +442,7 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
     // start next turn timer
     if (match.turnTimer) clearTimeout(match.turnTimer);
     match.turnTimer = setTimeout(() => {
-      safeRunMatchOp(match, async () => { await processEndTurn(matchRoom, { auto: true }, null); });
+     processEndTurn(matchRoom, { auto: true }, null);
     }, 15000);
 
     return true;
@@ -483,7 +483,7 @@ function endMatchCleanup(matchRoom) {
   emitToMatchRooms(matchRoom, 'match_ended', { matchId: matchRoom });
 
   setTimeout(() => {
-  safeRunMatchOp(match, async () => { await processEndTurn(matchRoom, { auto: true }, null); });
+   processEndTurn(matchRoom, { auto: true }, null);
 }, 15000);
 }
 
@@ -1139,13 +1139,8 @@ socket.on("endTurn", async (payload) => {
       return;
     }
 
-    const ok = await safeRunMatchOp(match, async () => {
-      await handleEndTurn(match, payload, socket);
-    });
+    await handleEndTurn(match, payload, socket);
 
-    if (!ok) {
-      socket.emit('endTurnRejected', { reason: 'server_busy', seq: match.turnSeq });
-    }
   } catch (err) {
     console.error('[END_TURN_HANDLER_ERR]', err);
     socket.emit('serverError', { message: 'Server error processing endTurn' });
