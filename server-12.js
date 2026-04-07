@@ -554,12 +554,6 @@ function endMatchForfeit(matchRoom, leaverSocketId, reason = 'leave') {
 
   endMatchCleanup(matchRoom);
 }
-
-socket.on("leave_match", ({ matchId }) => {
-  console.log("[LEAVE_MATCH]", socket.id, matchId);
-  endMatchForfeit(matchId, socket.id, 'leave');
-});
-
 io.on("connection", (socket) => {
   console.log("[CONNECT]", socket.id);
 
