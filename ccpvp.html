@@ -1853,11 +1853,18 @@
             startPvPGame(data);
         });
 
-        socket.on("opponent_disconnected", () => {
-            if (!isGameActive) return;
-            broadcastMsg("OPPONENT DISCONNECTED");
-            endGame("WIN BY DISCONNECT", "Your opponent left the match.");
-        });
+        socket.on("opponent_disconnected", (data = {}) => {
+        if (data.matchId && data.matchId !== matchRoom) return;
+        if (!isGameActive) return;
+        broadcastMsg("OPPONENT DISCONNECTED");
+        resetClientMatchState();
+        endGame("WIN BY DISCONNECT", "Your opponent left the match.");
+       });
+
+       socket.on("opponentReconnecting", (data = {}) => {
+       if (data && data.matchId && data.matchId !== matchRoom) return;
+       // optional backward-compat event from older servers   
+       });
 
         socket.on('flashMsg', ({ msg }) => {
             showFlashMsg(msg);
@@ -3314,10 +3321,14 @@
         // The duplicate versions have been removed to prevent double-firing.
 
         window.addEventListener("beforeunload", () => {
-            if (matchRoom) {
-                socket.emit("leave_match", { matchId: matchRoom });
-            }
-        });
+         if (matchRoom) {
+         const savedUser = JSON.parse(localStorage.getItem("player") || "null");
+         socket.emit("leave_match", {
+            matchId: matchRoom,
+            playerId: savedUser?.playerId || window.myPlayerId || null
+          });
+         }
+      });
 
         window.onload = () => {
             // Auth check

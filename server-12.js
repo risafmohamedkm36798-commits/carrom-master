@@ -247,12 +247,10 @@ async function handleEndTurn(matchOrRoom, payload = {}, socket = null) {
 
 // --- AUTHORITATIVE END TURN PROCESSOR (Hoisted) ---
 
-// ======= REPLACE processEndTurn WITH THIS ROBUST VERSION =======
 async function processEndTurn(matchRoom, payload = {}, socket = null) {
   const match = matches[matchRoom];
   if (!match || match.ended) return false;
 
-  // Unified processing lock (use single flag: match.processing)
   if (match.processing) {
     console.log('[PROCESS_LOCK] skipping processEndTurn because already processing:', matchRoom);
     return false;
@@ -260,201 +258,235 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
   match.processing = true;
 
   try {
-    const { boardState, flags = {}, auto = false, playerId } = payload;
+    const {
+      boardState,
+      flags = {},
+      auto = false,
+      playerId,
+      previousBoardState: clientPreviousBoard = null,
+      previousScores: clientPreviousScores = null
+    } = payload;
+
     const shooterPlayerId = playerId || match.currentShooterPlayerId;
-    const shooterRole = match.roleByPlayer ? match.roleByPlayer[shooterPlayerId] : (match.roleBySocket && match.roleBySocket[socket && socket.id]) || 'white';
+    const shooterRole =
+      match.roleByPlayer?.[shooterPlayerId] ||
+      match.roleBySocket?.[socket && socket.id] ||
+      'white';
 
-    console.log(auto ? `[TIMEOUT_TURN] ${matchRoom} shooter: ${shooterPlayerId}` : `[END_TURN] ${matchRoom} shooter: ${shooterPlayerId}`);
+    const players = Array.isArray(match.playerIds) ? match.playerIds.filter(Boolean) : [];
+    const otherPlayerId = players.find(pid => pid && pid !== shooterPlayerId) || null;
 
-   // Snapshot the state at the start of THIS turn
-    const preTurnBoard = JSON.parse(JSON.stringify(match.boardState || []));
-    const preTurnScores = JSON.parse(JSON.stringify(match.scores || { white: 0, black: 0 }));
+    const preShotBoard = Array.isArray(clientPreviousBoard) && clientPreviousBoard.length
+      ? JSON.parse(JSON.stringify(clientPreviousBoard))
+      : JSON.parse(JSON.stringify(match.previousBoardState || match.boardState || []));
 
-    match.previousBoardState = preTurnBoard;
-    match.previousScores = preTurnScores;
-    // Derive pocketed
-    const prev = Array.isArray(match.previousBoardState) ? match.previousBoardState : (match.boardState || []);
-    const curr = Array.isArray(boardState) ? boardState : (match.boardState || []);
-    function labels(list) { return (list||[]).filter(Boolean).map(c => (c.label || c.id || '').toString().toLowerCase()); }
-    const prevLabels = labels(prev), currLabels = labels(curr);
-    const pocketed = [];
+    const preShotScores = (clientPreviousScores && typeof clientPreviousScores === 'object')
+      ? JSON.parse(JSON.stringify({
+          white: Number(clientPreviousScores.white || 0),
+          black: Number(clientPreviousScores.black || 0)
+        }))
+      : JSON.parse(JSON.stringify(match.previousScores || match.scores || { white: 0, black: 0 }));
+
+    match.previousBoardState = JSON.parse(JSON.stringify(preShotBoard));
+    match.previousScores = JSON.parse(JSON.stringify(preShotScores));
+
+    const clientPocketed = Array.isArray(flags.coinsPocketedThisShot)
+      ? flags.coinsPocketedThisShot.map(v => String(v || '').toLowerCase()).filter(Boolean)
+      : [];
+
+    const labels = list => (list || [])
+      .filter(Boolean)
+      .map(c => String(c.label || c.id || '').toLowerCase())
+      .filter(Boolean);
+
+    const prevLabels = labels(preShotBoard);
+    const currLabels = labels(Array.isArray(boardState) ? boardState : (match.boardState || []));
+
+    const diffPocketed = [];
     const prevCount = {};
-    prevLabels.forEach(l => prevCount[l] = (prevCount[l] || 0) + 1);
+    for (const lbl of prevLabels) prevCount[lbl] = (prevCount[lbl] || 0) + 1;
     const currCount = {};
-    currLabels.forEach(l => currCount[l] = (currCount[l] || 0) + 1);
-    Object.keys(prevCount).forEach(l => {
-      const diff = Math.max(0, (prevCount[l] || 0) - (currCount[l] || 0));
-      for (let i = 0; i < diff; i++) pocketed.push(l);
+    for (const lbl of currLabels) currCount[lbl] = (currCount[lbl] || 0) + 1;
+    Object.keys(prevCount).forEach(lbl => {
+      const diff = Math.max(0, (prevCount[lbl] || 0) - (currCount[lbl] || 0));
+      for (let i = 0; i < diff; i++) diffPocketed.push(lbl);
     });
-    console.log('[SERVER] computed pocketed this shot:', pocketed);
 
-    // Ensure scores exist
-    match.scores = match.scores || { white: 0, black: 0 };
+    const pocketed = clientPocketed.length ? clientPocketed : diffPocketed;
 
-    // Compute simple scoring for normal coins (queen handled below)
-    const computedDelta = { white: 0, black: 0 };
-    pocketed.forEach(lbl => {
-      if (lbl === 'white' || lbl === 'black') {
-        // only award shooter for their own color
-        if (shooterRole && lbl === shooterRole) computedDelta[lbl] = (computedDelta[lbl] || 0) + 1;
+    match.scores = {
+      white: Number(preShotScores.white || 0),
+      black: Number(preShotScores.black || 0)
+    };
+
+    for (const lbl of pocketed) {
+      if ((lbl === 'white' || lbl === 'black') && lbl === shooterRole) {
+        match.scores[lbl] = (match.scores[lbl] || 0) + 1;
       }
-    });
-    match.scores.white = Math.max(0, (match.scores.white || 0) + (computedDelta.white || 0));
-    match.scores.black = Math.max(0, (match.scores.black || 0) + (computedDelta.black || 0));
+    }
 
-    // update boardState if provided (authoritative)
-    if (boardState) match.boardState = boardState;
+    if (Array.isArray(boardState)) {
+      match.boardState = JSON.parse(JSON.stringify(boardState));
+    }
 
-    // Foul detection
     const isStrikerFoul = !!flags.strikerPocketed || !!flags.strikerFoul;
     const isZoneFoul = !!flags.zoneFoul;
     const isDirectFoul = isStrikerFoul || isZoneFoul || !!flags.directFoul;
 
-    // Handle direct vs striker foul
+    const shooterPocketedOwnCoin = pocketed.includes(String(shooterRole).toLowerCase());
+    const queenPocketedNow = pocketed.includes('queen') || !!flags.queenPocketedThisShot;
+    const coverThisShot = !!flags.coverThisShot || !!flags.queenCoveredThisShot ||
+      (queenPocketedNow && shooterPocketedOwnCoin);
+
     if (isDirectFoul && !isStrikerFoul) {
-      // full restore + penalty respawn if player had points
-      match.boardState = JSON.parse(JSON.stringify(match.previousBoardState || []));
-      match.scores = JSON.parse(JSON.stringify(match.previousScores || { white: 0, black: 0 }));
-      const prevScore = (match.previousScores || match.scores)[shooterRole] || 0;
-      if (prevScore > 0) {
-        match.scores[shooterRole] = Math.max(0, (match.scores[shooterRole] || 0) - 1);
-        const penaltyId = `penalty_${Date.now()}`;
-        match.boardState.push({ id: penaltyId, label: shooterRole, x: 0.5, y: 0.5, penalty: true });
-        console.log('[SERVER] Direct foul: -1 point and respawned penalty coin for', shooterRole);
-      }
-    } else if (isStrikerFoul) {
-      // striker foul: deduct point but do not undo board
+      match.boardState = JSON.parse(JSON.stringify(preShotBoard));
+      match.scores = JSON.parse(JSON.stringify(preShotScores));
+      match.waitingForCover = false;
+      match.queenPocketedBy = null;
+
       if ((match.scores[shooterRole] || 0) > 0) {
         match.scores[shooterRole] = Math.max(0, (match.scores[shooterRole] || 0) - 1);
         const penaltyId = `penalty_${Date.now()}`;
-        match.boardState = match.boardState || (boardState || []);
-        match.boardState.push({ id: penaltyId, label: shooterRole, x: 0.5, y: 0.5 });
-        console.log('[SERVER] Striker foul: point deducted and penalty coin spawned');
+        match.boardState.push({
+          id: penaltyId,
+          label: shooterRole,
+          x: 0.5,
+          y: 0.5,
+          penalty: true
+        });
       }
-    }
+    } else if (isStrikerFoul) {
+      match.waitingForCover = false;
+      match.queenPocketedBy = null;
 
-    // === Queen handling (defensive + authoritative) ===
-    const pocketedLc = pocketed.map(p => (p||'').toString().toLowerCase());
-    let queenPocketedNow = pocketedLc.includes('queen') || !!flags.queenPocketedThisShot;
-    let coveredThisShot = !!(flags.coverThisShot || flags.queenCoveredThisShot);
-
-    // defensive detection: queen + cover in same shot -> treat as covered
-    if (!coveredThisShot && queenPocketedNow && shooterRole && pocketedLc.includes(shooterRole)) {
-      coveredThisShot = true;
-      console.log('[SERVER] defensive-detected: queen + cover -> treated as covered');
+      if ((match.scores[shooterRole] || 0) > 0) {
+        match.scores[shooterRole] = Math.max(0, (match.scores[shooterRole] || 0) - 1);
+        const penaltyId = `penalty_${Date.now()}`;
+        match.boardState = match.boardState || [];
+        match.boardState.push({
+          id: penaltyId,
+          label: shooterRole,
+          x: 0.5,
+          y: 0.5,
+          penalty: true
+        });
+      }
     }
 
     if (queenPocketedNow) {
-      if (coveredThisShot && !isDirectFoul) {
-        // immediate cover in same shot
+      if (coverThisShot && !isDirectFoul) {
         match.scores[shooterRole] = (match.scores[shooterRole] || 0) + 3;
         match.waitingForCover = false;
         match.queenPocketedBy = null;
+        emitToMatchRooms(matchRoom, 'queen_covered', {
+          matchId: matchRoom,
+          byRole: shooterRole,
+          seq: (match.turnSeq || 0) + 1
+        });
+      } else if (isDirectFoul) {
+        match.waitingForCover = false;
+        match.queenPocketedBy = null;
+        match.boardState = (match.boardState || []).filter(c => c.label !== 'queen');
+        match.boardState.push({ id: 'queen', label: 'queen', x: 0.5, y: 0.5 });
+        emitToMatchRooms(matchRoom, 'queen_return', {
+          matchId: matchRoom,
+          seq: (match.turnSeq || 0) + 1
+        });
+      } else {
+        match.waitingForCover = true;
+        match.queenPocketedBy = shooterPlayerId;
         match.turnSeq = (match.turnSeq || 0) + 1;
-        emitToMatchRooms(matchRoom, 'queen_covered', { matchId: matchRoom, byRole: shooterRole, seq: match.turnSeq });
-        console.log('[SERVER] Queen covered in same shot by', shooterRole);
-        // next shooter logic: shooter retains turn if rules => handled below
-      } else {
-        if (isDirectFoul) {
-          // foul returns queen
-          match.waitingForCover = false;
-          match.queenPocketedBy = null;
-          match.boardState = (match.boardState || []).filter(c => c.label !== 'queen');
-          match.boardState.push({ id: 'queen', label: 'queen', x: 0.5, y: 0.5 });
-          match.turnSeq = (match.turnSeq || 0) + 1;
-          emitToMatchRooms(matchRoom, 'queen_return', { matchId: matchRoom, seq: match.turnSeq });
-          console.log('[SERVER] Queen returned due to foul');
-        } else {
-          // pocketed queen without cover -> shooter gets immediate extra turn to cover
-          match.waitingForCover = true;
-          match.queenPocketedBy = shooterPlayerId;
-          match.queenPocketedTurnId = Date.now();
 
-          match.turnSeq = (match.turnSeq || 0) + 1;
-          // set lastUpdated timestamp for watchdog & diagnostics
+        emitToMatchRooms(matchRoom, 'boardState', {
+          boardState: match.boardState,
+          scores: match.scores,
+          matchId: matchRoom,
+          seq: match.turnSeq,
+          nextShooterPlayerId: shooterPlayerId,
+          nextShooterRole: shooterRole
+        });
 
-          emitToMatchRooms(matchRoom, 'boardState', { boardState: match.boardState, scores: match.scores, matchId: matchRoom, seq: match.turnSeq })
-          emitToMatchRooms(matchRoom, 'queen_pocketed', { matchId: matchRoom, playerId: shooterPlayerId, seq: match.turnSeq });
-
-          // explicitly assign shooter as next shooter (extra turn)
-          match.previousBoardState = JSON.parse(JSON.stringify(match.boardState || []));
-          match.previousScores = JSON.parse(JSON.stringify(match.scores || { white:0, black:0 }));
-          match.currentShooterPlayerId = shooterPlayerId;
-
-          const shooterSocket = (match.playerSockets && match.playerSockets[shooterPlayerId]);
-          if (shooterSocket) {
-            match.turnSeq = (match.turnSeq || 0) + 1;
-            io.to(shooterSocket).emit('yourTurn', { matchId: matchRoom, turnSeconds: 15, seq: match.turnSeq, nextShooterPlayerId: shooterPlayerId });
-          }
-
-          // start cover timeout (15s) that will force a direct foul if cover not made
-          if (match.turnTimer) clearTimeout(match.turnTimer);
-          match.turnTimer = setTimeout(() => {
-            if (!match.waitingForCover || match.queenPocketedBy !== shooterPlayerId) return;
-            safeRunMatchOp(match, async () => {
-              await processEndTurn(matchRoom, { auto: true, playerId: shooterPlayerId, flags: { directFoul: true } }, null);
-            });
-          }, 15000);
-
-          // STOP further end-turn flow here because we already assigned the extra-turn/cover flow
-          return true;
+        const shooterSocket = match.playerSockets?.[shooterPlayerId];
+        if (shooterSocket) {
+          io.to(shooterSocket).emit('yourTurn', {
+            matchId: matchRoom,
+            turnSeconds: 15,
+            seq: match.turnSeq,
+            nextShooterPlayerId: shooterPlayerId
+          });
         }
+
+        if (match.turnTimer) {
+          clearTimeout(match.turnTimer);
+          match.turnTimer = null;
+        }
+        match.turnTimer = setTimeout(() => {
+          if (!match.waitingForCover || match.queenPocketedBy !== shooterPlayerId) return;
+          safeRunMatchOp(match, async () => {
+            await processEndTurn(matchRoom, {
+              auto: true,
+              playerId: shooterPlayerId,
+              flags: { directFoul: true }
+            }, null);
+          });
+        }, 15000);
+
+        return true;
       }
     }
 
-    // If we reach here, not a queen-wait-flow that we have already delegated.
-    // Determine next shooter:
-    const players = match.playerIds || [];
-    let nextShooterPlayerId = null;
-    if (match.currentShooterPlayerId) {
-      // round-robin: the other player becomes next shooter unless shooter retains turn (computedDelta > 0)
-      const idx = players.indexOf(match.currentShooterPlayerId);
-      if (idx >= 0) {
-        const otherIdx = (idx + 1) % players.length;
-        // If shooter pocketed their own color (computedDelta for shooterRole > 0) they keep extra turn
-        const shooterKeptTurn = (computedDelta[shooterRole] || 0) > 0;
-        nextShooterPlayerId = shooterKeptTurn ? match.currentShooterPlayerId : players[otherIdx];
-      } else {
-        nextShooterPlayerId = players[0];
-      }
-    } else {
-      nextShooterPlayerId = (players && players[0]) || null;
-    }
+    const keptTurn = !isDirectFoul && !isStrikerFoul && (
+      shooterPocketedOwnCoin || coverThisShot
+    );
 
-    // persist turn info
+    const nextShooterPlayerId = keptTurn
+      ? shooterPlayerId
+      : (otherPlayerId || shooterPlayerId);
+
     match.currentShooterPlayerId = nextShooterPlayerId;
     match.turnSeq = (match.turnSeq || 0) + 1;
 
-    // Broadcast authoritative board + scores (always)
-    emitToMatchRooms(matchRoom, 'boardState', { boardState: match.boardState, scores: match.scores, matchId: matchRoom, seq: match.turnSeq });
+    emitToMatchRooms(matchRoom, 'boardState', {
+      boardState: match.boardState,
+      scores: match.scores,
+      matchId: matchRoom,
+      seq: match.turnSeq,
+      nextShooterPlayerId,
+      nextShooterRole: match.roleByPlayer ? match.roleByPlayer[nextShooterPlayerId] : null
+    });
 
-    // Notify next shooter explicitly (if connected)
-    if (nextShooterPlayerId) {
-      const nextSocketId = (match.playerSockets && match.playerSockets[nextShooterPlayerId]);
-      // emit both to the specific socket and to match room so reconnections/spectators still get info
-      if (nextSocketId) {
-        io.to(nextSocketId).emit('yourTurn', { matchId: matchRoom, turnSeconds: 15, seq: match.turnSeq, nextShooterPlayerId });
-      }
-      emitToMatchRooms(matchRoom, 'turnInfo', { matchId: matchRoom, currentPlayerId: nextShooterPlayerId, seq: match.turnSeq });
-    } else {
-      // fallback: emit turnInfo with null to wake clients
-      emitToMatchRooms(matchRoom, 'turnInfo', { matchId: matchRoom, currentPlayerId: null, seq: match.turnSeq });
+    emitToMatchRooms(matchRoom, 'turnInfo', {
+      matchId: matchRoom,
+      currentPlayerId: nextShooterPlayerId,
+      seq: match.turnSeq
+    });
+
+    const nextSocketId = match.playerSockets?.[nextShooterPlayerId];
+    if (nextSocketId) {
+      io.to(nextSocketId).emit('yourTurn', {
+        matchId: matchRoom,
+        turnSeconds: 15,
+        seq: match.turnSeq,
+        nextShooterPlayerId
+      });
     }
 
-    // start next turn timer
-    if (match.turnTimer) clearTimeout(match.turnTimer);
+    if (match.turnTimer) {
+      clearTimeout(match.turnTimer);
+      match.turnTimer = null;
+    }
     match.turnTimer = setTimeout(() => {
-     processEndTurn(matchRoom, { auto: true }, null);
+      processEndTurn(matchRoom, { auto: true }, null);
     }, 15000);
 
     return true;
   } catch (err) {
     console.error('[processEndTurn] error for', matchRoom, err);
-    // send an emergency notification to room so clients can recover UI
-    try { emitToMatchRooms(matchRoom, 'serverError', { message: 'Server error resolving turn' }); } catch (e) {}
+    try {
+      emitToMatchRooms(matchRoom, 'serverError', { message: 'Server error resolving turn' });
+    } catch (e) {}
     return false;
   } finally {
-    // ALWAYS clear the unified lock so we never leave a locked match
     try { match.processing = false; } catch (e) {}
     try { match.processing_end_turn = false; } catch (e) {}
   }
@@ -473,10 +505,13 @@ function endMatchCleanup(matchRoom) {
 
   console.log(`[CLEANUP] match: ${matchRoom}`);
   match.ended = true;
+
   if (match.turnTimer) { clearTimeout(match.turnTimer); match.turnTimer = null; }
   if (match.intervalRef) { clearInterval(match.intervalRef); match.intervalRef = null; }
   if (match.timerRef) { clearTimeout(match.timerRef); match.timerRef = null; }
+  if (match.reconnectTimer) { clearTimeout(match.reconnectTimer); match.reconnectTimer = null; }
 
+  match.processing = false;
   match.processing_end_turn = false;
   match.turnSeq = 0;
   match.waitingForCover = false;
@@ -485,9 +520,45 @@ function endMatchCleanup(matchRoom) {
   emitToMatchRooms(matchRoom, 'match_ended', { matchId: matchRoom });
 
   setTimeout(() => {
-   processEndTurn(matchRoom, { auto: true }, null);
-}, 15000);
+    if (matches[matchRoom]) {
+      delete matches[matchRoom];
+      console.log(`[CLEANUP] removed ${matchRoom}`);
+    }
+  }, 5000);
 }
+
+function endMatchForfeit(matchRoom, leaverSocketId, reason = 'leave') {
+  const match = matches[matchRoom];
+  if (!match || match.ended) return;
+
+  if (match.reconnectTimer) {
+    clearTimeout(match.reconnectTimer);
+    match.reconnectTimer = null;
+  }
+
+  const survivorId = (match.players || []).find(id => id !== leaverSocketId) || null;
+  const survivorRole = survivorId
+    ? (match.roleByPlayer?.[match.playersWithIds?.[survivorId]] || match.roleBySocket?.[survivorId] || null)
+    : null;
+
+  if (survivorId) {
+    io.to(survivorId).emit('opponent_disconnected', {
+      matchId: matchRoom,
+      reason
+    });
+    io.to(survivorId).emit('gameEnd', {
+      winnerRole: survivorRole,
+      matchId: matchRoom
+    });
+  }
+
+  endMatchCleanup(matchRoom);
+}
+
+socket.on("leave_match", ({ matchId }) => {
+  console.log("[LEAVE_MATCH]", socket.id, matchId);
+  endMatchForfeit(matchId, socket.id, 'leave');
+});
 
 io.on("connection", (socket) => {
   console.log("[CONNECT]", socket.id);
@@ -1240,56 +1311,41 @@ socket.on("endTurn", async (payload) => {
   });
 
   socket.on("disconnect", () => {
-    try {
-      console.log("[DISCONNECT]", socket.id);
-      const entry = findMatch(socket.id);
-      if (!entry) {
-        console.log('[DISCONNECT] socket not in active match:', socket.id);
-        // cleanup rooms if any
-        for (const [name, room] of Object.entries(rooms)) {
-          room.players = (Array.isArray(room.players) ? room.players.filter(id => id !== socket.id) : []);
-          if (room.ready) room.ready.delete(socket.id);
-          if (room.players.length === 0) delete rooms[name];
-        }
-        return;
-      }
+  try {
+    console.log("[DISCONNECT]", socket.id);
+    const entry = findMatch(socket.id);
 
-      const { match, matchRoom, playerId, role } = entry;
-      console.log('[DISCONNECT] found match for socket:', socket.id, 'matchRoom=', matchRoom, 'playerId=', playerId);
-
-      if (role === 'spectator') {
-        // cleanup spectator entry
-        match.spectators = (match.spectators || []).filter(id => id !== socket.id);
-        io.to(matchRoom).emit('spectator_count_update', { count: match.spectators.length });
-        io.to(`match_${matchRoom}`).emit('spectator_count_update', { count: match.spectators.length });
-        return;
-      }
-
-      // Mark player disconnected
-      match.disconnected = socket.id;
-      match.disconnectTime = Date.now();
-      const opponentId = match.players.find(id => id !== socket.id);
-      if (opponentId) io.to(opponentId).emit("opponentReconnecting");
-
-      match.reconnectTimer = setTimeout(() => {
-        if (match.disconnected === socket.id) {
-          const winnerId = opponentId;
-          const winnerRole = match.roleBySocket ? match.roleBySocket[winnerId] : null;
-          emitToMatchRooms(matchRoom, "gameEnd", { winnerRole, matchId: matchRoom });
-          endMatchCleanup(matchRoom);
-        }
-      }, 25000);
-
-      // standard room cleanup
+    if (!entry) {
+      console.log('[DISCONNECT] socket not in active match:', socket.id);
       for (const [name, room] of Object.entries(rooms)) {
         room.players = (Array.isArray(room.players) ? room.players.filter(id => id !== socket.id) : []);
         if (room.ready) room.ready.delete(socket.id);
         if (room.players.length === 0) delete rooms[name];
       }
-    } catch (err) {
-      console.error('[DISCONNECT] handler error', err);
+      return;
     }
-  });
+
+    const { match, matchRoom, role } = entry;
+    console.log('[DISCONNECT] found match for socket:', socket.id, 'matchRoom=', matchRoom, 'role=', role);
+
+    if (role === 'spectator') {
+      match.spectators = (match.spectators || []).filter(id => id !== socket.id);
+      io.to(matchRoom).emit('spectator_count_update', { count: match.spectators.length });
+      io.to(`match_${matchRoom}`).emit('spectator_count_update', { count: match.spectators.length });
+      return;
+    }
+
+    endMatchForfeit(matchRoom, socket.id, 'disconnect');
+
+    for (const [name, room] of Object.entries(rooms)) {
+      room.players = (Array.isArray(room.players) ? room.players.filter(id => id !== socket.id) : []);
+      if (room.ready) room.ready.delete(socket.id);
+      if (room.players.length === 0) delete rooms[name];
+    }
+  } catch (err) {
+    console.error('[DISCONNECT] handler error', err);
+  }
+});
 
   socket.on("reconnectMatch", ({ playerId }) => {
     const matchRoom = Object.keys(matches).find(k => (matches[k].playerIds || []).includes(playerId));
