@@ -266,10 +266,12 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
 
     console.log(auto ? `[TIMEOUT_TURN] ${matchRoom} shooter: ${shooterPlayerId}` : `[END_TURN] ${matchRoom} shooter: ${shooterPlayerId}`);
 
-    // Snapshot previous state (preserve undo behaviour)
-    match.previousBoardState = match.previousBoardState || JSON.parse(JSON.stringify(match.boardState || []));
-    match.previousScores = match.previousScores || JSON.parse(JSON.stringify(match.scores || { white: 0, black: 0 }));
+   // Snapshot the state at the start of THIS turn
+    const preTurnBoard = JSON.parse(JSON.stringify(match.boardState || []));
+    const preTurnScores = JSON.parse(JSON.stringify(match.scores || { white: 0, black: 0 }));
 
+    match.previousBoardState = preTurnBoard;
+    match.previousScores = preTurnScores;
     // Derive pocketed
     const prev = Array.isArray(match.previousBoardState) ? match.previousBoardState : (match.boardState || []);
     const curr = Array.isArray(boardState) ? boardState : (match.boardState || []);
