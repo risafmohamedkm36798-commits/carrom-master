@@ -314,16 +314,25 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
 
     const pocketed = clientPocketed.length ? clientPocketed : diffPocketed;
 
-    match.scores = {
-      white: Number(preShotScores.white || 0),
-      black: Number(preShotScores.black || 0)
-    };
+    const pocketedCoins = (Array.isArray(flags.coinsPocketedThisShot) && flags.coinsPocketedThisShot.length)
+  ? flags.coinsPocketedThisShot.map(v => String(v || '').toLowerCase()).filter(Boolean)
+  : pocketed.map(v => String(v || '').toLowerCase()).filter(Boolean);
 
-    for (const lbl of pocketed) {
-      if ((lbl === 'white' || lbl === 'black') && lbl === shooterRole) {
-        match.scores[lbl] = (match.scores[lbl] || 0) + 1;
-      }
+   const scoreDelta = { white: 0, black: 0 };
+
+   for (const lbl of pocketedCoins) {
+    if (lbl === 'white' || lbl === 'black') {
+     scoreDelta[lbl] += 1;
     }
+  }
+
+  match.scores = {
+  white: Number(match.scores?.white || preShotScores.white || 0),
+  black: Number(match.scores?.black || preShotScores.black || 0)
+  };
+
+  match.scores.white += scoreDelta.white;
+  match.scores.black += scoreDelta.black;
 
     if (Array.isArray(boardState)) {
       match.boardState = JSON.parse(JSON.stringify(boardState));
@@ -435,9 +444,7 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
       }
     }
 
-    const keptTurn = !isDirectFoul && !isStrikerFoul && (
-      shooterPocketedOwnCoin || coverThisShot
-    );
+    const keptTurn = !isDirectFoul && !isStrikerFoul && pocketedCoins.length > 0;
 
     const nextShooterPlayerId = keptTurn
       ? shooterPlayerId
