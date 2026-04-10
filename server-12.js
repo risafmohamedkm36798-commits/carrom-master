@@ -197,6 +197,9 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 const rooms = {};
 const matches = {};
+function cloneState(value) {
+  return JSON.parse(JSON.stringify(value));
+}
 const MATCH_DURATION_MS = 4 * 60 * 1000; // 4 minutes
 const WIN_SCORE = 9;
 
@@ -286,6 +289,10 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
           black: Number(clientPreviousScores.black || 0)
         }))
       : JSON.parse(JSON.stringify(match.previousScores || match.scores || { white: 0, black: 0 }));
+    match.turnSnapshot = {
+      boardState: cloneState(preShotBoard),
+      scores: cloneState(preShotScores)
+     };
 
     match.previousBoardState = JSON.parse(JSON.stringify(preShotBoard));
     match.previousScores = JSON.parse(JSON.stringify(preShotScores));
@@ -312,7 +319,7 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
       for (let i = 0; i < diff; i++) diffPocketed.push(lbl);
     });
 
-    const pocketed = clientPocketed.length ? clientPocketed : diffPocketed;
+    const pocketed = diffPocketed;
 
     const pocketedCoins = (Array.isArray(flags.coinsPocketedThisShot) && flags.coinsPocketedThisShot.length)
   ? flags.coinsPocketedThisShot.map(v => String(v || '').toLowerCase()).filter(Boolean)
@@ -326,14 +333,11 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
     }
   }
 
-  match.scores = {
-  white: Number(match.scores?.white || preShotScores.white || 0),
-  black: Number(match.scores?.black || preShotScores.black || 0)
-  };
+   const liveScores = JSON.parse(JSON.stringify(match.scores || { white: 0, black: 0 }));
+   match.scores = liveScores;
 
-  match.scores.white += scoreDelta.white;
-  match.scores.black += scoreDelta.black;
-
+   match.scores.white = (match.scores.white || 0) + scoreDelta.white;
+   match.scores.black = (match.scores.black || 0) + scoreDelta.black;
     if (Array.isArray(boardState)) {
       match.boardState = JSON.parse(JSON.stringify(boardState));
     }
@@ -348,23 +352,32 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
       (queenPocketedNow && shooterPocketedOwnCoin);
 
     if (isDirectFoul && !isStrikerFoul) {
-      match.boardState = JSON.parse(JSON.stringify(preShotBoard));
-      match.scores = JSON.parse(JSON.stringify(preShotScores));
-      match.waitingForCover = false;
-      match.queenPocketedBy = null;
+  const restoreBoard = match.turnSnapshot?.boardState
+    ? cloneState(match.turnSnapshot.boardState)
+    : cloneState(preShotBoard);
 
-      if ((match.scores[shooterRole] || 0) > 0) {
-        match.scores[shooterRole] = Math.max(0, (match.scores[shooterRole] || 0) - 1);
-        const penaltyId = `penalty_${Date.now()}`;
-        match.boardState.push({
-          id: penaltyId,
-          label: shooterRole,
-          x: 0.5,
-          y: 0.5,
-          penalty: true
-        });
-      }
-    } else if (isStrikerFoul) {
+  const restoreScores = match.turnSnapshot?.scores
+    ? cloneState(match.turnSnapshot.scores)
+    : cloneState(preShotScores);
+
+  match.boardState = restoreBoard;
+  match.scores = restoreScores;
+  match.waitingForCover = false;
+  match.queenPocketedBy = null;
+
+  if ((match.scores[shooterRole] || 0) > 0) {
+    match.scores[shooterRole] = Math.max(0, (match.scores[shooterRole] || 0) - 1);
+    const penaltyId = `penalty_${Date.now()}`;
+    match.boardState.push({
+      id: penaltyId,
+      label: shooterRole,
+      x: 0.5,
+      y: 0.5,
+      penalty: true
+    });
+  }
+}
+     else if (isStrikerFoul) {
       match.waitingForCover = false;
       match.queenPocketedBy = null;
 
@@ -443,7 +456,7 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
         return true;
       }
     }
-
+  
     const keptTurn = !isDirectFoul && !isStrikerFoul && pocketedCoins.length > 0;
 
     const nextShooterPlayerId = keptTurn
@@ -482,6 +495,10 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
       clearTimeout(match.turnTimer);
       match.turnTimer = null;
     }
+    match.turnSnapshot = {
+      boardState: cloneState(match.boardState || []),
+      scores: cloneState(match.scores || { white: 0, black: 0 })
+    };
     match.turnTimer = setTimeout(() => {
       processEndTurn(matchRoom, { auto: true }, null);
     }, 15000);
