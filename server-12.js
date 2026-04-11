@@ -312,11 +312,12 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
   });
 
   const pocketed = diffPocketed;
+  const pocketedCoins = pocketed;
   const scoreDelta = { white: 0, black: 0 };
 
-  for (const lbl of pocketed) {
+  for (const lbl of pocketedCoins) {
    if (lbl === 'white' || lbl === 'black') {
-    scoreDelta[lbl] += 1;
+     scoreDelta[lbl] += 1;
    }
  }
 
@@ -476,7 +477,7 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
       });
     }
     saveShotSnapshot(match);
-    return true;
+    
     if (match.turnTimer) {
       clearTimeout(match.turnTimer);
       match.turnTimer = null;
@@ -485,6 +486,12 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
     match.turnTimer = setTimeout(() => {
       processEndTurn(matchRoom, { auto: true }, null);
     }, 15000);
+    console.log('[TURN_DONE]', {
+    keptTurn,
+    nextShooterPlayerId,
+    scores: match.scores,
+    pocketed
+   });
 
     return true;
   } catch (err) {
