@@ -197,6 +197,13 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 const rooms = {};
 const matches = {};
+function saveShotSnapshot(match) {
+  if (!match) return;
+  match.shotSnapshot = {
+    boardState: cloneState(match.boardState || []),
+    scores: cloneState(match.scores || { white: 0, black: 0 })
+  };
+}
 function cloneState(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -279,65 +286,43 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
     const players = Array.isArray(match.playerIds) ? match.playerIds.filter(Boolean) : [];
     const otherPlayerId = players.find(pid => pid && pid !== shooterPlayerId) || null;
 
-    const preShotBoard = Array.isArray(clientPreviousBoard) && clientPreviousBoard.length
-      ? JSON.parse(JSON.stringify(clientPreviousBoard))
-      : JSON.parse(JSON.stringify(match.previousBoardState || match.boardState || []));
-
-    const preShotScores = (clientPreviousScores && typeof clientPreviousScores === 'object')
-      ? JSON.parse(JSON.stringify({
-          white: Number(clientPreviousScores.white || 0),
-          black: Number(clientPreviousScores.black || 0)
-        }))
-      : JSON.parse(JSON.stringify(match.previousScores || match.scores || { white: 0, black: 0 }));
-    match.turnSnapshot = {
-      boardState: cloneState(preShotBoard),
-      scores: cloneState(preShotScores)
-     };
-
+    const preShotBoard = cloneState(match.turnSnapshot?.boardState || match.boardState || []);
+    const preShotScores = cloneState(match.turnSnapshot?.scores || match.scores || { white: 0, black: 0 });
     match.previousBoardState = JSON.parse(JSON.stringify(preShotBoard));
     match.previousScores = JSON.parse(JSON.stringify(preShotScores));
-
-    const clientPocketed = Array.isArray(flags.coinsPocketedThisShot)
-      ? flags.coinsPocketedThisShot.map(v => String(v || '').toLowerCase()).filter(Boolean)
-      : [];
 
     const labels = list => (list || [])
       .filter(Boolean)
       .map(c => String(c.label || c.id || '').toLowerCase())
       .filter(Boolean);
 
-    const prevLabels = labels(preShotBoard);
-    const currLabels = labels(Array.isArray(boardState) ? boardState : (match.boardState || []));
+   const prevLabels = labels(preShotBoard);
+   const currLabels = labels(Array.isArray(boardState) ? boardState : (match.boardState || []));
 
-    const diffPocketed = [];
-    const prevCount = {};
-    for (const lbl of prevLabels) prevCount[lbl] = (prevCount[lbl] || 0) + 1;
-    const currCount = {};
-    for (const lbl of currLabels) currCount[lbl] = (currCount[lbl] || 0) + 1;
-    Object.keys(prevCount).forEach(lbl => {
-      const diff = Math.max(0, (prevCount[lbl] || 0) - (currCount[lbl] || 0));
-      for (let i = 0; i < diff; i++) diffPocketed.push(lbl);
-    });
+   const diffPocketed = [];
+   const prevCount = {};
+   for (const lbl of prevLabels) prevCount[lbl] = (prevCount[lbl] || 0) + 1;
 
-    const pocketed = diffPocketed;
+  const currCount = {};
+  for (const lbl of currLabels) currCount[lbl] = (currCount[lbl] || 0) + 1;
 
-    const pocketedCoins = (Array.isArray(flags.coinsPocketedThisShot) && flags.coinsPocketedThisShot.length)
-  ? flags.coinsPocketedThisShot.map(v => String(v || '').toLowerCase()).filter(Boolean)
-  : pocketed.map(v => String(v || '').toLowerCase()).filter(Boolean);
+  Object.keys(prevCount).forEach(lbl => {
+    const diff = Math.max(0, (prevCount[lbl] || 0) - (currCount[lbl] || 0));
+    for (let i = 0; i < diff; i++) diffPocketed.push(lbl);
+  });
 
-   const scoreDelta = { white: 0, black: 0 };
+  const pocketed = diffPocketed;
+  const scoreDelta = { white: 0, black: 0 };
 
-   for (const lbl of pocketedCoins) {
-    if (lbl === 'white' || lbl === 'black') {
-     scoreDelta[lbl] += 1;
-    }
-  }
+  for (const lbl of pocketed) {
+   if (lbl === 'white' || lbl === 'black') {
+    scoreDelta[lbl] += 1;
+   }
+ }
 
-   const liveScores = JSON.parse(JSON.stringify(match.scores || { white: 0, black: 0 }));
-   match.scores = liveScores;
-
-   match.scores.white = (match.scores.white || 0) + scoreDelta.white;
-   match.scores.black = (match.scores.black || 0) + scoreDelta.black;
+ match.scores = JSON.parse(JSON.stringify(match.scores || { white: 0, black: 0 }));
+ match.scores.white = (match.scores.white || 0) + scoreDelta.white;
+ match.scores.black = (match.scores.black || 0) + scoreDelta.black;
     if (Array.isArray(boardState)) {
       match.boardState = JSON.parse(JSON.stringify(boardState));
     }
@@ -352,18 +337,18 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
       (queenPocketedNow && shooterPocketedOwnCoin);
 
     if (isDirectFoul && !isStrikerFoul) {
-  const restoreBoard = match.turnSnapshot?.boardState
-    ? cloneState(match.turnSnapshot.boardState)
+    const restoreBoard = match.shotSnapshot?.boardState
+    ? cloneState(match.shotSnapshot.boardState)
     : cloneState(preShotBoard);
 
-  const restoreScores = match.turnSnapshot?.scores
-    ? cloneState(match.turnSnapshot.scores)
+   const restoreScores = match.shotSnapshot?.scores
+    ? cloneState(match.shotSnapshot.scores)
     : cloneState(preShotScores);
 
-  match.boardState = restoreBoard;
-  match.scores = restoreScores;
-  match.waitingForCover = false;
-  match.queenPocketedBy = null;
+   match.boardState = restoreBoard;
+   match.scores = restoreScores;
+   match.waitingForCover = false;
+   match.queenPocketedBy = null;
 
   if ((match.scores[shooterRole] || 0) > 0) {
     match.scores[shooterRole] = Math.max(0, (match.scores[shooterRole] || 0) - 1);
@@ -490,15 +475,13 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
         nextShooterPlayerId
       });
     }
-
+    saveShotSnapshot(match);
+    return true;
     if (match.turnTimer) {
       clearTimeout(match.turnTimer);
       match.turnTimer = null;
     }
-    match.turnSnapshot = {
-      boardState: cloneState(match.boardState || []),
-      scores: cloneState(match.scores || { white: 0, black: 0 })
-    };
+  
     match.turnTimer = setTimeout(() => {
       processEndTurn(matchRoom, { auto: true }, null);
     }, 15000);
