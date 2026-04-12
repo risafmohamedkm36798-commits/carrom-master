@@ -207,6 +207,33 @@ function saveShotSnapshot(match) {
 function cloneState(value) {
   return JSON.parse(JSON.stringify(value));
 }
+function finishMatchByScore(matchRoom) {
+  const match = matches[matchRoom];
+  if (!match || match.ended) return true;
+
+  const white = Number(match.scores?.white || 0);
+  const black = Number(match.scores?.black || 0);
+
+  if (white < WIN_SCORE && black < WIN_SCORE) return false;
+
+  const winnerRole =
+    white === black ? null : (white > black ? "white" : "black");
+
+  match.ended = true;
+
+  if (match.turnTimer) { clearTimeout(match.turnTimer); match.turnTimer = null; }
+  if (match.intervalRef) { clearInterval(match.intervalRef); match.intervalRef = null; }
+  if (match.timerRef) { clearTimeout(match.timerRef); match.timerRef = null; }
+
+  emitToMatchRooms(matchRoom, "gameEnd", { winnerRole, matchId: matchRoom });
+  emitToMatchRooms(matchRoom, "match_ended", { matchId: matchRoom });
+
+  setTimeout(() => {
+    if (matches[matchRoom]) delete matches[matchRoom];
+  }, 5000);
+
+  return true;
+}
 const MATCH_DURATION_MS = 4 * 60 * 1000; // 4 minutes
 const WIN_SCORE = 9;
 
@@ -320,15 +347,21 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
   const pocketedCoins = pocketed;
   const scoreDelta = { white: 0, black: 0 };
 
-  for (const lbl of pocketedCoins) {
-   if (lbl === 'white' || lbl === 'black') {
-     scoreDelta[lbl] += 1;
-   }
- }
+  const awardPocketPoints = !isDirectFoul && !isStrikerFoul;
 
- match.scores = JSON.parse(JSON.stringify(match.scores || { white: 0, black: 0 }));
- match.scores.white = (match.scores.white || 0) + scoreDelta.white;
- match.scores.black = (match.scores.black || 0) + scoreDelta.black;
+  if (awardPocketPoints) {
+   for (const lbl of pocketedCoins) {
+     if (lbl === 'white' || lbl === 'black') {
+      scoreDelta[lbl] += 1;
+     }
+   }
+
+   match.scores = JSON.parse(JSON.stringify(match.scores || { white: 0, black: 0 }));
+   match.scores.white = (match.scores.white || 0) + scoreDelta.white;
+   match.scores.black = (match.scores.black || 0) + scoreDelta.black;
+
+   if (finishMatchByScore(matchRoom)) return true;
+ }
     if (Array.isArray(boardState)) {
       match.boardState = JSON.parse(JSON.stringify(boardState));
     }
@@ -389,6 +422,7 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
     if (queenPocketedNow) {
       if (coverThisShot && !isDirectFoul) {
         match.scores[shooterRole] = (match.scores[shooterRole] || 0) + 3;
+        if (finishMatchByScore(matchRoom)) return true;
         match.waitingForCover = false;
         match.queenPocketedBy = null;
         emitToMatchRooms(matchRoom, 'queen_covered', {
@@ -418,7 +452,7 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
           nextShooterPlayerId: shooterPlayerId,
           nextShooterRole: shooterRole
         });
-
+       
         const shooterSocket = match.playerSockets?.[shooterPlayerId];
         if (shooterSocket) {
           io.to(shooterSocket).emit('yourTurn', {
@@ -443,7 +477,12 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
             }, null);
           });
         }, 15000);
+        match.queenSnapshot = {
+         boardState: cloneState(preShotBoard),
+         scores: cloneState(match.scores || { white: 0, black: 0 })
+        };
 
+        saveShotSnapshot(match);
         return true;
       }
     }
