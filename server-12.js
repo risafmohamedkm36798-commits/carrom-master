@@ -345,6 +345,32 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
 
   const pocketed = clientPocketed.length ? clientPocketed : diffPocketed;
   const pocketedCoins = pocketed;
+  const queenCoverPending = !!match.waitingForCover && match.queenPocketedBy === shooterPlayerId;
+  let resolvedQueenCover = false;
+
+  if (queenCoverPending) {
+   const restoreBoard = cloneState(match.queenSnapshot?.boardState || preShotBoard);
+   const restoreScores = cloneState(match.queenSnapshot?.scores || preShotScores);
+
+   if (coverThisShot && !isDirectFoul && !isStrikerFoul) {
+     match.scores = restoreScores;
+     match.scores[shooterRole] = (match.scores[shooterRole] || 0) + 3;
+     if (finishMatchByScore(matchRoom)) return true;
+   } else {
+     match.boardState = restoreBoard;
+     match.scores = restoreScores;
+
+     const queenExists = (match.boardState || []).some(c => String(c.label || '').toLowerCase() === 'queen');
+     if (!queenExists) {
+       match.boardState.push({ id: 'queen', label: 'queen', x: 0.5, y: 0.5 });
+     }
+   }
+
+   match.waitingForCover = false;
+   match.queenPocketedBy = null;
+   match.queenSnapshot = null;
+   resolvedQueenCover = true;
+ }
   const isStrikerFoul = !!flags.strikerPocketed || !!flags.strikerFoul;
   const isZoneFoul = !!flags.zoneFoul;
   const isDirectFoul = isStrikerFoul || isZoneFoul || !!flags.directFoul;
@@ -405,21 +431,23 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
       match.waitingForCover = false;
       match.queenPocketedBy = null;
 
-      if ((match.scores[shooterRole] || 0) > 0) {
-        match.scores[shooterRole] = Math.max(0, (match.scores[shooterRole] || 0) - 1);
-        const penaltyId = `penalty_${Date.now()}`;
-        match.boardState = match.boardState || [];
-        match.boardState.push({
-          id: penaltyId,
-          label: shooterRole,
-          x: 0.5,
-          y: 0.5,
-          penalty: true
-        });
-      }
-    }
+      match.boardState = cloneState(preShotBoard);
+      match.scores = cloneState(preShotScores);
 
-    if (queenPocketedNow) {
+     if ((match.scores[shooterRole] || 0) > 0) {
+      match.scores[shooterRole] = Math.max(0, (match.scores[shooterRole] || 0) - 1);
+      const penaltyId = `penalty_${Date.now()}`;
+      match.boardState.push({
+      id: penaltyId,
+      label: shooterRole,
+      x: 0.5,
+      y: 0.5,
+      penalty: true
+     });
+   }
+ }
+
+    if (queenPocketedNow && !match.waitingForCover) {
       if (coverThisShot && !isDirectFoul) {
         match.scores[shooterRole] = (match.scores[shooterRole] || 0) + 3;
         if (finishMatchByScore(matchRoom)) return true;
