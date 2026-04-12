@@ -345,6 +345,15 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
 
   const pocketed = clientPocketed.length ? clientPocketed : diffPocketed;
   const pocketedCoins = pocketed;
+  const isStrikerFoul = !!flags.strikerPocketed || !!flags.strikerFoul;
+  const isZoneFoul = !!flags.zoneFoul;
+  const isDirectFoul = isStrikerFoul || isZoneFoul || !!flags.directFoul;
+
+  const shooterPocketedOwnCoin = pocketed.includes(String(shooterRole).toLowerCase());
+  const queenPocketedNow = pocketed.includes('queen') || !!flags.queenPocketedThisShot;
+  const coverThisShot = !!flags.coverThisShot || !!flags.queenCoveredThisShot ||
+  (queenPocketedNow && shooterPocketedOwnCoin);
+
   const scoreDelta = { white: 0, black: 0 };
 
   const awardPocketPoints = !isDirectFoul && !isStrikerFoul;
@@ -365,15 +374,6 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
     if (Array.isArray(boardState)) {
       match.boardState = JSON.parse(JSON.stringify(boardState));
     }
-
-    const isStrikerFoul = !!flags.strikerPocketed || !!flags.strikerFoul;
-    const isZoneFoul = !!flags.zoneFoul;
-    const isDirectFoul = isStrikerFoul || isZoneFoul || !!flags.directFoul;
-
-    const shooterPocketedOwnCoin = pocketed.includes(String(shooterRole).toLowerCase());
-    const queenPocketedNow = pocketed.includes('queen') || !!flags.queenPocketedThisShot;
-    const coverThisShot = !!flags.coverThisShot || !!flags.queenCoveredThisShot ||
-      (queenPocketedNow && shooterPocketedOwnCoin);
 
     if (isDirectFoul && !isStrikerFoul) {
     const restoreBoard = match.shotSnapshot?.boardState
