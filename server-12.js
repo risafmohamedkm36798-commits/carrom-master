@@ -276,6 +276,11 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
       previousBoardState: clientPreviousBoard = null,
       previousScores: clientPreviousScores = null
     } = payload;
+    const clientPocketed = Array.isArray(flags.coinsPocketedThisShot)
+     ? flags.coinsPocketedThisShot
+        .map(v => String(v || '').toLowerCase())
+        .filter(v => v === 'white' || v === 'black' || v === 'queen')
+     : [];
 
     const shooterPlayerId = playerId || match.currentShooterPlayerId;
     const shooterRole =
@@ -311,7 +316,7 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
     for (let i = 0; i < diff; i++) diffPocketed.push(lbl);
   });
 
-  const pocketed = diffPocketed;
+  const pocketed = clientPocketed.length ? clientPocketed : diffPocketed;
   const pocketedCoins = pocketed;
   const scoreDelta = { white: 0, black: 0 };
 
