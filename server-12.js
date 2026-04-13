@@ -345,8 +345,18 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
 
   const pocketed = clientPocketed.length ? clientPocketed : diffPocketed;
   const pocketedCoins = pocketed;
+  const isStrikerFoul = !!flags.strikerPocketed || !!flags.strikerFoul;
+  const isZoneFoul = !!flags.zoneFoul;
+  const isDirectFoul = isStrikerFoul || isZoneFoul || !!flags.directFoul;
+
+  const shooterPocketedOwnCoin = pocketed.includes(String(shooterRole).toLowerCase());
+  const queenPocketedNow = pocketed.includes('queen') || !!flags.queenPocketedThisShot;
+  const coverThisShot = !!flags.coverThisShot || !!flags.queenCoveredThisShot ||
+    (queenPocketedNow && shooterPocketedOwnCoin);
+
   const queenCoverPending = !!match.waitingForCover && match.queenPocketedBy === shooterPlayerId;
-  let resolvedQueenCover = false;
+  let queenHandled = false;
+  let queenKeepsTurn = false;
 
   if (queenCoverPending) {
    const restoreBoard = cloneState(match.queenSnapshot?.boardState || preShotBoard);
@@ -355,31 +365,25 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
    if (coverThisShot && !isDirectFoul && !isStrikerFoul) {
      match.scores = restoreScores;
      match.scores[shooterRole] = (match.scores[shooterRole] || 0) + 3;
+     queenKeepsTurn = true;
+
      if (finishMatchByScore(matchRoom)) return true;
    } else {
      match.boardState = restoreBoard;
      match.scores = restoreScores;
+     queenKeepsTurn = false;
 
      const queenExists = (match.boardState || []).some(c => String(c.label || '').toLowerCase() === 'queen');
      if (!queenExists) {
-       match.boardState.push({ id: 'queen', label: 'queen', x: 0.5, y: 0.5 });
+      match.boardState.push({ id: 'queen', label: 'queen', x: 0.5, y: 0.5 });
      }
    }
 
    match.waitingForCover = false;
    match.queenPocketedBy = null;
    match.queenSnapshot = null;
-   resolvedQueenCover = true;
+   queenHandled = true;
  }
-  const isStrikerFoul = !!flags.strikerPocketed || !!flags.strikerFoul;
-  const isZoneFoul = !!flags.zoneFoul;
-  const isDirectFoul = isStrikerFoul || isZoneFoul || !!flags.directFoul;
-
-  const shooterPocketedOwnCoin = pocketed.includes(String(shooterRole).toLowerCase());
-  const queenPocketedNow = pocketed.includes('queen') || !!flags.queenPocketedThisShot;
-  const coverThisShot = !!flags.coverThisShot || !!flags.queenCoveredThisShot ||
-  (queenPocketedNow && shooterPocketedOwnCoin);
-
   const scoreDelta = { white: 0, black: 0 };
 
   const awardPocketPoints = !isDirectFoul && !isStrikerFoul;
@@ -434,10 +438,10 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
       match.boardState = cloneState(preShotBoard);
       match.scores = cloneState(preShotScores);
 
-     if ((match.scores[shooterRole] || 0) > 0) {
-      match.scores[shooterRole] = Math.max(0, (match.scores[shooterRole] || 0) - 1);
-      const penaltyId = `penalty_${Date.now()}`;
-      match.boardState.push({
+    if ((match.scores[shooterRole] || 0) > 0) {
+     match.scores[shooterRole] = Math.max(0, (match.scores[shooterRole] || 0) - 1);
+     const penaltyId = `penalty_${Date.now()}`;
+     match.boardState.push({
       id: penaltyId,
       label: shooterRole,
       x: 0.5,
@@ -515,7 +519,7 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
       }
     }
   
-    const keptTurn = !isDirectFoul && !isStrikerFoul && pocketedCoins.length > 0;
+    const keptTurn = !isDirectFoul && !isStrikerFoul && (queenHandled ? queenKeepsTurn : pocketedCoins.length > 0);
 
     const nextShooterPlayerId = keptTurn
       ? shooterPlayerId
