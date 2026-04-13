@@ -211,6 +211,22 @@ function saveShotStartSnapshot(match) {
     scores: cloneState(match.scores || { white: 0, black: 0 })
   };
 }
+function respawnCoinsToCenter(match, labels = []) {
+  if (!match) return;
+  if (!Array.isArray(match.boardState)) match.boardState = [];
+
+  for (const raw of labels) {
+    const label = String(raw || '').toLowerCase();
+    if (!label) continue;
+
+    match.boardState.push({
+      id: `${label}_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+      label,
+      x: 0.5,
+      y: 0.5
+    });
+  }
+}
 function cloneState(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -377,15 +393,9 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
 
      if (finishMatchByScore(matchRoom)) return true;
    } else {
-     match.boardState = restoreBoard;
-     match.scores = restoreScores;
+     respawnCoinsToCenter(match, ['queen']);
      queenKeepsTurn = false;
-
-     const queenExists = (match.boardState || []).some(c => String(c.label || '').toLowerCase() === 'queen');
-     if (!queenExists) {
-      match.boardState.push({ id: 'queen', label: 'queen', x: 0.5, y: 0.5 });
-     }
-   }
+    }
 
    match.waitingForCover = false;
    match.queenPocketedBy = null;
@@ -443,10 +453,19 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
      else if (isStrikerFoul) {
       match.waitingForCover = false;
       match.queenPocketedBy = null;
-      specialBoardHandled = true;
+      const normalPocketed = pocketedCoins.filter(lbl => lbl === 'white' || lbl === 'black');
+      respawnCoinsToCenter(match, normalPocketed);
 
-      match.boardState = cloneState(preShotBoard);
-      match.scores = cloneState(preShotScores);
+     if ((match.scores[shooterRole] || 0) > 0) {
+      match.scores[shooterRole] = Math.max(0, (match.scores[shooterRole] || 0) - 1);
+      respawnCoinsToCenter(match, [shooterRole]);
+     }
+
+     if (queenPocketedNow || queenCoverPending) {
+      respawnCoinsToCenter(match, ['queen']);
+     }
+
+     specialBoardHandled = true;
 
     if ((match.scores[shooterRole] || 0) > 0) {
      match.scores[shooterRole] = Math.max(0, (match.scores[shooterRole] || 0) - 1);
