@@ -394,7 +394,7 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
    queenRespawned = true;
    respawnCoinsToCenter(match, ['queen']);
   };
-
+  if (queenCoverPending) {
    if (coverThisShot && !isDirectFoul) {
     match.scores[shooterRole] = (match.scores[shooterRole] || 0) + 3;
 
