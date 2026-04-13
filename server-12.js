@@ -364,6 +364,7 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
   const queenCoverPending = !!match.waitingForCover && match.queenPocketedBy === shooterPlayerId;
   let queenHandled = false;
   let queenKeepsTurn = false;
+  let specialBoardHandled = false;
 
   if (queenCoverPending) {
    const restoreBoard = cloneState(match.queenSnapshot?.boardState || preShotBoard);
@@ -390,6 +391,7 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
    match.queenPocketedBy = null;
    match.queenSnapshot = null;
    queenHandled = true;
+   specialBoardHandled = true;
  }
   const scoreDelta = { white: 0, black: 0 };
 
@@ -408,9 +410,9 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
 
    if (finishMatchByScore(matchRoom)) return true;
  }
-    if (Array.isArray(boardState)) {
+    if (Array.isArray(boardState) && !specialBoardHandled) {
       match.boardState = JSON.parse(JSON.stringify(boardState));
-    }
+     }
 
     if (isDirectFoul && !isStrikerFoul) {
     const restoreBoard = match.shotSnapshot?.boardState
@@ -441,6 +443,7 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
      else if (isStrikerFoul) {
       match.waitingForCover = false;
       match.queenPocketedBy = null;
+      specialBoardHandled = true;
 
       match.boardState = cloneState(preShotBoard);
       match.scores = cloneState(preShotScores);
@@ -473,10 +476,12 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
         match.waitingForCover = false;
         match.queenPocketedBy = null;
         match.boardState = (match.boardState || []).filter(c => c.label !== 'queen');
+        specialBoardHandled = true;
         match.boardState.push({ id: 'queen', label: 'queen', x: 0.5, y: 0.5 });
         emitToMatchRooms(matchRoom, 'queen_return', {
           matchId: matchRoom,
           seq: (match.turnSeq || 0) + 1
+          
         });
       } else {
         match.waitingForCover = true;
