@@ -204,6 +204,13 @@ function saveShotSnapshot(match) {
     scores: cloneState(match.scores || { white: 0, black: 0 })
   };
 }
+function saveShotStartSnapshot(match) {
+  if (!match) return;
+  match.shotStartSnapshot = {
+    boardState: cloneState(match.boardState || []),
+    scores: cloneState(match.scores || { white: 0, black: 0 })
+  };
+}
 function cloneState(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -318,8 +325,8 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
     const players = Array.isArray(match.playerIds) ? match.playerIds.filter(Boolean) : [];
     const otherPlayerId = players.find(pid => pid && pid !== shooterPlayerId) || null;
 
-    const preShotBoard = cloneState(match.turnSnapshot?.boardState || match.boardState || []);
-    const preShotScores = cloneState(match.turnSnapshot?.scores || match.scores || { white: 0, black: 0 });
+    const preShotBoard = cloneState(match.shotStartSnapshot?.boardState || match.boardState || []);
+    const preShotScores = cloneState(match.shotStartSnapshot?.scores || match.scores || { white: 0, black: 0 });
     match.previousBoardState = JSON.parse(JSON.stringify(preShotBoard));
     match.previousScores = JSON.parse(JSON.stringify(preShotScores));
 
@@ -511,10 +518,10 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
         }, 15000);
         match.queenSnapshot = {
          boardState: cloneState(preShotBoard),
-         scores: cloneState(match.scores || { white: 0, black: 0 })
+         scores: cloneState(preShotScores)
         };
 
-        saveShotSnapshot(match);
+        saveShotStartSnapshot(match);
         return true;
       }
     }
@@ -552,7 +559,7 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
         nextShooterPlayerId
       });
     }
-    saveShotSnapshot(match);
+    saveShotStartSnapshot(match);
     
     if (match.turnTimer) {
       clearTimeout(match.turnTimer);
