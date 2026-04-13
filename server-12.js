@@ -381,21 +381,30 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
   let queenHandled = false;
   let queenKeepsTurn = false;
   let specialBoardHandled = false;
+  let queenRespawned = false;
+
+  const respawnQueenOnce = () => {
+   if (queenRespawned) return;
+   queenRespawned = true;
+   respawnCoinsToCenter(match, ['queen']);
+  };
 
   if (queenCoverPending) {
    const restoreBoard = cloneState(match.queenSnapshot?.boardState || preShotBoard);
    const restoreScores = cloneState(match.queenSnapshot?.scores || preShotScores);
 
-   if (coverThisShot && !isDirectFoul && !isStrikerFoul) {
-     match.scores = restoreScores;
+   if (coverThisShot && !isDirectFoul) {
      match.scores[shooterRole] = (match.scores[shooterRole] || 0) + 3;
      queenKeepsTurn = true;
+     queenHandled   = true;
+     specialBoardHandled  = true;
 
      if (finishMatchByScore(matchRoom)) return true;
    } else {
-     respawnCoinsToCenter(match, ['queen']);
+     respawnQueenOnce();
      queenKeepsTurn = false;
-    }
+     specialBoardHandled = true;
+   }
 
    match.waitingForCover = false;
    match.queenPocketedBy = null;
@@ -462,9 +471,9 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
      }
 
      if (queenPocketedNow || queenCoverPending) {
-      respawnCoinsToCenter(match, ['queen']);
+      respawnQueenOnce()
      }
-
+     queenHandled = true;
      specialBoardHandled = true;
 
     if ((match.scores[shooterRole] || 0) > 0) {
@@ -480,7 +489,7 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
    }
  }
 
-    if (queenPocketedNow && !match.waitingForCover) {
+    if (queenPocketedNow && !match.waitingForCover && !queenHandled) {
       if (coverThisShot && !isDirectFoul) {
         match.scores[shooterRole] = (match.scores[shooterRole] || 0) + 3;
         if (finishMatchByScore(matchRoom)) return true;
