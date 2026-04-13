@@ -227,6 +227,12 @@ function respawnCoinsToCenter(match, labels = []) {
     });
   }
 }
+function removeQueenFromBoard(match) {
+  if (!match || !Array.isArray(match.boardState)) return;
+  match.boardState = match.boardState.filter(c =>
+    String(c.label || '').toLowerCase() !== 'queen'
+  );
+}
 function cloneState(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -389,17 +395,20 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
    respawnCoinsToCenter(match, ['queen']);
   };
 
-  if (queenCoverPending) {
-   const restoreBoard = cloneState(match.queenSnapshot?.boardState || preShotBoard);
-   const restoreScores = cloneState(match.queenSnapshot?.scores || preShotScores);
-
    if (coverThisShot && !isDirectFoul) {
-     match.scores[shooterRole] = (match.scores[shooterRole] || 0) + 3;
-     queenKeepsTurn = true;
-     queenHandled   = true;
-     specialBoardHandled  = true;
+    match.scores[shooterRole] = (match.scores[shooterRole] || 0) + 3;
 
-     if (finishMatchByScore(matchRoom)) return true;
+    removeQueenFromBoard(match);
+
+    match.waitingForCover = false;
+    match.queenPocketedBy = null;
+    match.queenSnapshot = null;
+
+    queenKeepsTurn = true;
+    queenHandled = true;
+    specialBoardHandled = true;
+
+    if (finishMatchByScore(matchRoom)) return true;
    } else {
      respawnQueenOnce();
      queenKeepsTurn = false;
@@ -490,17 +499,26 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
  }
 
     if (queenPocketedNow && !match.waitingForCover && !queenHandled) {
-      if (coverThisShot && !isDirectFoul) {
-        match.scores[shooterRole] = (match.scores[shooterRole] || 0) + 3;
-        if (finishMatchByScore(matchRoom)) return true;
-        match.waitingForCover = false;
-        match.queenPocketedBy = null;
-        emitToMatchRooms(matchRoom, 'queen_covered', {
-          matchId: matchRoom,
-          byRole: shooterRole,
-          seq: (match.turnSeq || 0) + 1
-        });
-      } else if (isDirectFoul) {
+     if (coverThisShot && !isDirectFoul) {
+      match.scores[shooterRole] = (match.scores[shooterRole] || 0) + 3;
+
+      removeQueenFromBoard(match);
+
+     match.waitingForCover = false;
+     match.queenPocketedBy = null;
+     match.queenSnapshot = null;
+
+     queenHandled = true;
+     specialBoardHandled = true;
+
+     if (finishMatchByScore(matchRoom)) return true;
+
+     emitToMatchRooms(matchRoom, 'queen_covered', {
+      matchId: matchRoom,
+      byRole: shooterRole,
+      seq: (match.turnSeq || 0) + 1
+     });
+   }  else if (isDirectFoul) {
         match.waitingForCover = false;
         match.queenPocketedBy = null;
         match.boardState = (match.boardState || []).filter(c => c.label !== 'queen');
