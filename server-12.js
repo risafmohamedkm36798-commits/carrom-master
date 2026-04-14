@@ -415,13 +415,13 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
    } else {
      respawnQueenOnce();
      queenKeepsTurn = false;
-     specialBoardHandled = true;
+     
    
 
-   match.waitingForCover = false;
-   match.queenPocketedBy = null;
-   match.queenSnapshot = null;
-  }
+    match.waitingForCover = false;
+    match.queenPocketedBy = null;
+    match.queenSnapshot = null;
+   }
 
    queenHandled = true;
    specialBoardHandled = true;
@@ -513,6 +513,7 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
      match.queenPocketedBy = null;
      match.queenSnapshot = null;
 
+     queenKeepsTurn = true;
      queenHandled = true;
      specialBoardHandled = true;
 
