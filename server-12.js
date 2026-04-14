@@ -507,7 +507,8 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
      match.waitingForCover = false;
      match.queenPocketedBy = null;
      match.queenSnapshot = null;
-
+       
+     queenKeepsTurn = true;
      queenHandled = true;
      specialBoardHandled = true;
 
