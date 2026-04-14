@@ -372,7 +372,7 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
     for (let i = 0; i < diff; i++) diffPocketed.push(lbl);
   });
 
-  const pocketed = clientPocketed.length ? clientPocketed : diffPocketed;
+  const pocketed = diffPocketed;
   const pocketedCoins = pocketed;
   const isStrikerFoul = !!flags.strikerPocketed || !!flags.strikerFoul;
   const isZoneFoul = !!flags.zoneFoul;
