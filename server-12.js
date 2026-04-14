@@ -377,7 +377,8 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
   const isStrikerFoul = !!flags.strikerPocketed || !!flags.strikerFoul;
   const isZoneFoul = !!flags.zoneFoul;
   const isDirectFoul = isStrikerFoul || isZoneFoul || !!flags.directFoul;
-
+  
+  const queenCoverPending = !!match.waitingForCover && match.queenPocketedBy === shooterPlayerId;
   const shooterPocketedOwnCoin = pocketed.includes(String(shooterRole).toLowerCase());
   const queenPocketedNow = pocketed.includes('queen') || !!flags.queenPocketedThisShot;
   const coverThisShot =
@@ -386,7 +387,6 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
     (queenPocketedNow && shooterPocketedOwnCoin) ||
     (queenCoverPending && pocketedCoins.some(lbl => lbl === shooterRole));
 
-   const queenCoverPending = !!match.waitingForCover && match.queenPocketedBy === shooterPlayerId;
    let queenHandled = false;
    let queenKeepsTurn = false;
    let specialBoardHandled = false;
