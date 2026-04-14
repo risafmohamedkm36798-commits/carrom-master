@@ -380,21 +380,24 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
 
   const shooterPocketedOwnCoin = pocketed.includes(String(shooterRole).toLowerCase());
   const queenPocketedNow = pocketed.includes('queen') || !!flags.queenPocketedThisShot;
-  const coverThisShot = !!flags.coverThisShot || !!flags.queenCoveredThisShot ||
-    (queenPocketedNow && shooterPocketedOwnCoin);
+  const coverThisShot =
+    !!flags.coverThisShot ||
+    !!flags.queenCoveredThisShot ||
+    (queenPocketedNow && shooterPocketedOwnCoin) ||
+    (queenCoverPending && pocketedCoins.some(lbl => lbl === shooterRole));
 
-  const queenCoverPending = !!match.waitingForCover && match.queenPocketedBy === shooterPlayerId;
-  let queenHandled = false;
-  let queenKeepsTurn = false;
-  let specialBoardHandled = false;
-  let queenRespawned = false;
+   const queenCoverPending = !!match.waitingForCover && match.queenPocketedBy === shooterPlayerId;
+   let queenHandled = false;
+   let queenKeepsTurn = false;
+   let specialBoardHandled = false;
+   let queenRespawned = false;
 
-  const respawnQueenOnce = () => {
-   if (queenRespawned) return;
-   queenRespawned = true;
-   respawnCoinsToCenter(match, ['queen']);
-  };
-
+   const respawnQueenOnce = () => {
+    if (queenRespawned) return;
+    queenRespawned = true;
+    respawnCoinsToCenter(match, ['queen']);
+   };
+   if (queenCoverPending) {
    if (coverThisShot && !isDirectFoul) {
     match.scores[shooterRole] = (match.scores[shooterRole] || 0) + 3;
 
@@ -413,14 +416,16 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
      respawnQueenOnce();
      queenKeepsTurn = false;
      specialBoardHandled = true;
-   }
+   
 
    match.waitingForCover = false;
    match.queenPocketedBy = null;
    match.queenSnapshot = null;
+  }
+
    queenHandled = true;
    specialBoardHandled = true;
- }
+  }
   const scoreDelta = { white: 0, black: 0 };
 
   const awardPocketPoints = !isDirectFoul && !isStrikerFoul;
@@ -466,8 +471,8 @@ async function processEndTurn(matchRoom, payload = {}, socket = null) {
       y: 0.5,
       penalty: true
     });
-  }
-}
+   }
+ }
      else if (isStrikerFoul) {
       match.waitingForCover = false;
       match.queenPocketedBy = null;
