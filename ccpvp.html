@@ -993,7 +993,7 @@
         // ══════════════════════════════════════════════════════════════════
         //  SOCKET
         // ══════════════════════════════════════════════════════════════════
-        const socket = io("https://carrom-master.onrender.com", {
+        const socket = io(window.location.origin, {
             transports: ["websocket"]
         });
 
