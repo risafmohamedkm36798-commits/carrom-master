@@ -1765,14 +1765,30 @@ app.get("/my-tournament/:playerId", async (req, res) => {
 
 
 
-app.post("/match-result", async (req, res) => {
+  app.post("/match-result", async (req, res) => {
   const { tournamentId, winnerId, loserId } = req.body;
+
+  const activeTournamentMatch = Object.entries(matches).some(([, m]) =>
+    String(m.tournamentId) === String(tournamentId) && !m.ended
+  );
+
+  if (activeTournamentMatch) {
+    return res.json({
+      success: true,
+      skipped: true,
+      message: "Live tournament result is handled by socket event"
+    });
+  }
 
   const tournament = await Tournament.findById(tournamentId);
   if (!tournament) return res.json({ success: false });
 
-  const winner = (Array.isArray(tournament.players) ? tournament.players.find(p => p.playerId === winnerId) : null);
-  const loser = (Array.isArray(tournament.players) ? tournament.players.find(p => p.playerId === loserId) : null);
+  const winner = Array.isArray(tournament.players)
+    ? tournament.players.find(p => p.playerId === winnerId)
+    : null;
+  const loser = Array.isArray(tournament.players)
+    ? tournament.players.find(p => p.playerId === loserId)
+    : null;
 
   if (winner) {
     winner.score += 10;
@@ -1787,19 +1803,6 @@ app.post("/match-result", async (req, res) => {
 
   await tournament.save();
   io.to(`tournament_${tournament._id}`).emit('tournamentUpdate', tournament);
-
-  // Emit individual player updates for lobby/profile sync
-  const winUser = await User.findOne({ playerId: winnerId });
-  if (winUser) {
-    // Find the socket if possible, or broadcast if not cached (server-side socket-to-player map needed for targeted emit)
-    // For now, let's assume global listeners will catch relevant tournamentUpdate, 
-    // but the instruction specifically asked for playerUpdate.
-    io.emit('playerUpdate', { playerId: winnerId, coins: winUser.coins, wins: winUser.wins });
-  }
-  const loseUser = await User.findOne({ playerId: loserId });
-  if (loseUser) {
-    io.emit('playerUpdate', { playerId: loserId, coins: loseUser.coins, wins: loseUser.wins });
-  }
 
   res.json({ success: true });
 });
