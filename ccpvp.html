@@ -450,6 +450,55 @@
         .hidden {
             display: none !important;
         }
+        #helpPopup .modal-content {
+           background: linear-gradient(145deg, #1e1e2f, #111827);
+           border-radius: 16px;
+           padding: 20px;
+           width: calc(100vw - 32px);
+           max-width: 420px;
+           max-height: 85vh;
+           overflow: hidden;
+           box-shadow: 0 8px 40px rgba(0, 0, 0, 0.85);
+           border: 1px solid rgba(255, 204, 0, 0.25);
+        }
+
+        .help-page h2 {
+           margin: 0 0 12px 0;
+           color: #ffcc00;
+           font-size: 1.2rem;
+           line-height: 1.2;
+        }
+
+        .help-page p {
+           margin: 0 0 10px 0;
+           color: #e5e7eb;
+           line-height: 1.6;
+           font-size: 0.95rem;
+        }
+
+        .help-page ul {
+           margin: 8px 0 0 18px;
+           padding: 0;
+           color: #e5e7eb;
+           line-height: 1.6;
+           font-size: 0.95rem;
+        }
+
+        .help-page li {
+           margin-bottom: 6px;
+        }
+
+        .help-nav-btn:disabled {
+           opacity: 0.45;
+           cursor: not-allowed;
+        }
+
+        .help-page-card {
+           background: rgba(255, 255, 255, 0.04);
+           border: 1px solid rgba(255, 255, 255, 0.08);
+           border-radius: 14px;
+           padding: 14px;
+        }
 
         /* Tabs Styling */
         .tabs {
@@ -826,6 +875,47 @@
             🎁
         </div>
     </div>
+    <!-- Help Icon (below Redeem) -->
+       <div id="helpIcon" title="Help / Rules"
+           style="position:fixed;top:114px;right:14px;width:42px;height:42px;background:#22c55e;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;z-index:1000;box-shadow:0 2px 8px rgba(0,0,0,0.5);color:white;">
+           ?
+       </div>
+
+       <!-- Help Popup -->
+       <div id="helpPopup" class="popup screen">
+           <div id="helpCard" class="modal-content" style="width:calc(100vw - 32px); max-width:420px; box-sizing:border-box; text-align:left;">
+               <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;">
+                   <button id="helpPrevBtn" type="button"
+                        style="padding:10px 12px;border-radius:10px;border:none;background:#374151;color:white;font-weight:700;cursor:pointer;">
+                        ← Previous
+                    </button>
+
+                    <div style="font-weight:900;color:#ffcc00;letter-spacing:1px;text-transform:uppercase;">
+                       Help Center
+                    </div>
+
+                    <button id="helpCloseXBtn" type="button"
+                         style="width:38px;height:38px;border-radius:10px;border:none;background:#ef4444;color:white;font-size:18px;font-weight:900;cursor:pointer;">
+                         ✕
+                     </button>
+                   </div>
+
+                   <div id="helpPageBody" style="max-height:58vh; overflow-y:auto; padding-right:4px;"></div>
+
+                   <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;">
+                       <div id="helpPageIndicator" style="color:#9ca3af;font-size:12px;font-weight:700;">Page 1 / 7</div>
+
+                       <button id="helpNextBtn" type="button"
+                            style="padding:10px 14px;border-radius:10px;border:none;background:#ffcc00;color:black;font-weight:900;cursor:pointer;">
+                            Next →
+                        </button>
+                     </div>
+
+                    <div style="margin-top:10px;text-align:center;color:#9ca3af;font-size:12px;font-weight:600;">
+                        Swipe left / right or use the arrows
+                    </div>
+                 </div>
+             </div>
 
     <div id="gameContainer" class="screen">
         <button id="spectateBackBtn" onclick="exitSpectate()"
@@ -2660,7 +2750,206 @@
             }
             screen.classList.add('active');
         }
+        const helpPages = [
+            {
+                title: "How to Play",
+                body: `
+                   <div class="help-page-card">
+                       <p>Welcome to <b>Carrom Master PVP Tournament</b>, where skill, timing, and smart play decide the winner.</p>
+                       <p>Use the striker to hit your coins and pocket them into the holes. Play carefully and avoid fouls.</p>
+                       <ul>
+                           <li>Pocket your own coins to score points.</li>
+                           <li>Queen cover gives <b>+3 points</b>.</li>
+                           <li>First player to reach <b>9 points</b> wins.</li>
+                           <li>Each match lasts <b>4 minutes</b>.</li>
+                           <li>Direct hit foul and striker foul give <b>-1 point</b>.</li>
+                        </ul>
+                    </div>
+                 `
+             },
+             {
+                 title: "How to Join Tournament",
+                 body: `
+                    <div class="help-page-card">
+                        <p>Joining a tournament is simple.</p>
+                        <ul>
+                            <li>Open the game lobby.</li>
+                            <li>Tap <b>Tournament</b> below Practice.</li>
+                            <li>Select <b>Join Tournament</b>.</li>
+                            <li>View the currently available tournament.</li>
+                            <li>Tap <b>Join</b>.</li>
+                            <li>You will  be directed to Tournament Lobby.</li>
+                        </ul>
+                        <p><b>Important:</b> Tournament entry uses <b>100 coins</b> in game. Only valid entries can participate.</p>
+                    </div>
+               `
+           },
+           {
+               title: "How Tournament Works",
+               body: `
+                  <div class="help-page-card">
+                      <p>Tournament mode is live and competitive.</p>
+                      <ul>
+                         <li>Every player starts with <b>3 lives</b>.</li>
+                         <li>Each match has a <b>4-minute</b> duration.</li>
+                         <li>The first player to score <b>9 points</b> wins.</li>
+                         <li>Press the <b>Battle</b> button in the lobby to compete.</li>
+                         <li>The scoreboard updates in real time.</li>
+                         <li>If a player loses all 3 lives, they are eliminated.</li>
+                         <li>Press the red dot near a player tag to spectate.</li>
+                     </ul>
+                 </div>
+               `
+            },
+            {
+               title: "Refund Rule",
+               body: `
+                  <div class="help-page-card">
+                      <p>We keep tournament registration clear and fair for all players.</p>
+                      <ul>
+                          <li>Tournament entry is <b>non-refundable</b> once redeem code is issued or used.</li>
+                          <li>No refund for disconnected matches.</li>
+                          <li>No refund for losses or eliminations.</li>
+                          <li>No refund for fake or edited payment screenshots.</li>
+                          <li>No refund for rule violations or cheating.</li>
+                       </ul>
+                       <p>Players must submit valid payment proof during registration.</p>
+                   </div>
+                `
+            },
+            {
+                title: "Disconnection Rule",
+                body: `
+                    <div class="help-page-card">
+                        <p>A stable connection is important for fair gameplay.</p>
+                        <ul>
+                           <li>If a player disconnects during a tournament match, the match will <b>not restart</b>.</li>
+                           <li>The opponent will be declared the winner immediately.</li>
+                           <li>No refund will be provided for disconnection-related issues.</li>
+                           <li>Press my lobby button in Tournament menu to return back to lobby after disconnection.</li>
+                        </ul>
+                        <p>Please make sure your internet connection is stable before joining a match.</p>
+                    </div>
+                `
+           },
+           {
+               title: "Cheating Rule",
+               body: `
+                   <div class="help-page-card">
+                       <p>Fair play is strictly enforced in Carrom Master PVP Tournament.</p>
+                       <ul>
+                           <li>Fake payment screenshots</li>
+                           <li>Hacks, mods, scripts, or external tools</li>
+                           <li>Exploiting bugs intentionally</li>
+                           <li>Manipulating scores or rewards</li>
+                           <li>Multiple accounts for unfair advantage</li>
+                           <li>Misusing redeem codes</li>
+                        </ul>
+                        <p><b>Penalty:</b> disqualification, match loss, leaderboard removal, permanent ban, and no refund.</p>
+                    </div>
+               `
+           },
+           {
+               title: "Contact / Support",
+               body: `
+                   <div class="help-page-card">
+                       <p>Need help with registration, payment, redeem codes, or tournament issues?</p>
+                       <ul>
+                          <li><b>Email:</b> carrommasterpvp@gmail.com</li>
+                          <li><b>Website:</b> www.carrommasterpvp.online</li>
+                       </ul>
+                       <p>Carrom Master PVP — Play fair. Compete hard. Win with skill.</p>
+                    </div>
+               `
+            }
+         ];
 
+          let helpPageIndex = 0;
+
+          function renderHelpPage() {
+             const page = helpPages[helpPageIndex];
+             const body = document.getElementById("helpPageBody");
+             const indicator = document.getElementById("helpPageIndicator");
+             const prevBtn = document.getElementById("helpPrevBtn");
+             const nextBtn = document.getElementById("helpNextBtn");
+
+             if (!body || !page) return;
+
+             body.innerHTML = `
+                 <div class="help-page">
+                    <h2>${page.title}</h2>
+                    ${page.body}
+                </div>
+           `;
+
+           if (indicator) indicator.textContent = `Page ${helpPageIndex + 1} / ${helpPages.length}`;
+           if (prevBtn) prevBtn.disabled = helpPageIndex === 0;
+           if (nextBtn) nextBtn.textContent = (helpPageIndex === helpPages.length - 1) ? "Finish" : "Next →";
+        }
+
+        function openHelpPopup() {
+           helpPageIndex = 0;
+           renderHelpPage();
+           showScreen("helpPopup");
+        }
+
+        function closeHelpPopup() {
+            showScreen("mainMenu");
+        }
+
+        function nextHelpPage() {
+           if (helpPageIndex < helpPages.length - 1) {
+           helpPageIndex++;
+           renderHelpPage();
+        } else {
+           closeHelpPopup();
+        }
+    }
+
+    function prevHelpPage() {
+        if (helpPageIndex > 0) {
+           helpPageIndex--;
+           renderHelpPage();
+       }
+    }
+
+    document.getElementById("helpIcon").addEventListener("click", openHelpPopup);
+    document.getElementById("helpPrevBtn").addEventListener("click", prevHelpPage);
+    document.getElementById("helpNextBtn").addEventListener("click", nextHelpPage);
+    document.getElementById("helpCloseXBtn").addEventListener("click", closeHelpPopup);
+
+   // Optional: close when tapping outside the card
+   document.getElementById("helpPopup").addEventListener("click", (e) => {
+      if (e.target.id === "helpPopup") closeHelpPopup();
+   });
+
+   // Swipe navigation
+   let helpTouchStartX = 0;
+   let helpTouchEndX = 0;
+
+   document.getElementById("helpPopup").addEventListener("touchstart", (e) => {
+      helpTouchStartX = e.changedTouches[0].screenX;
+   }, { passive: true });
+
+   document.getElementById("helpPopup").addEventListener("touchend", (e) => {
+      helpTouchEndX = e.changedTouches[0].screenX;
+      const diff = helpTouchEndX - helpTouchStartX;
+ 
+      if (Math.abs(diff) > 50) {
+         if (diff < 0) nextHelpPage();
+         else prevHelpPage();
+      }
+  }, { passive: true });
+
+ // Keyboard support
+    document.addEventListener("keydown", (e) => {
+       const helpOpen = document.getElementById("helpPopup").classList.contains("active");
+       if (!helpOpen) return;
+
+       if (e.key === "ArrowRight") nextHelpPage();
+       if (e.key === "ArrowLeft") prevHelpPage();
+       if (e.key === "Escape") closeHelpPopup();
+    });
         function showTournamentModal() {
             showScreen("tournamentPopup");
             showCreateTab();
