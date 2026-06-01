@@ -985,7 +985,7 @@
     <audio id="strikerSound">
         <source src="InShot_20260218_135246972.mp3" type="audio/mpeg">
     </audio>
-    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
     <!-- Polished Auth/Profile Modal -->
     <div id="authModal" class="auth-modal">
         <div class="auth-box">
@@ -1093,9 +1093,15 @@
         // ══════════════════════════════════════════════════════════════════
         //  SOCKET
         // ══════════════════════════════════════════════════════════════════
-        const socket = io(window.location.origin, {
-            transports: ["websocket"]
-        });
+        let socket = null;
+
+        try {
+            socket = io(window.location.origin, {
+               transports: ["websocket"]
+            });
+        } catch (err) {
+            console.error("Socket.IO failed to initialize:", err);
+        }
 
         // ← REPLACE the single-line connect handler with this block:
         socket.on("connect", () => {
