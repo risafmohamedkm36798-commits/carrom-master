@@ -2915,12 +2915,13 @@
       `;
 
       document.getElementById("changePassQuickBtn").onclick = () => {
-          resetEmail.value = user.email;
+          forgotEmail.value = user.email;
           showAuthView("reset");
       };
 
       document.getElementById("logoutBtnInner").onclick = () => {
-         clearCurrentUser();
+         currentUser = null;
+         localStorage.removeItem("player")
          showAuthView("login");
        };
      }
