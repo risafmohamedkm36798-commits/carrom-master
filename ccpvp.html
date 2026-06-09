@@ -2791,11 +2791,8 @@
            const data = await res.json();
 
            if (data.success) {
-               currentUser = data.user;
-               localStorage.setItem("player", JSON.stringify(data.user));
-               window.myPlayerId = data.user.playerId;
-               window.currentPlayerId = data.user.playerId;
-               showProfile(data.user);
+              setCurrentUser(data.user);
+              showProfile(data.user);
            } else {
               loginError.style.display = "block";
               loginError.textContent = data.message || "Login failed";
@@ -2832,10 +2829,7 @@
            const data = await res.json();
 
            if (data.success) {
-              currentUser = data.user;
-              localStorage.setItem("player", JSON.stringify(data.user));
-              window.myPlayerId = data.user.playerId;
-              window.currentPlayerId = data.user.playerId;
+              setCurrentUser(data.user);
               showProfile(data.user);
             } else {
                alert(data.message);
@@ -2891,10 +2885,7 @@
          const data = await res.json();
 
          if (data.success) {
-            currentUser = data.user;
-            localStorage.setItem("player", JSON.stringify(data.user));
-            window.myPlayerId = data.user.playerId;
-            window.currentPlayerId = data.user.playerId;
+            setCurrentUser(data.user);
             showProfile(data.user);
             alert("Password changed successfully");
          } else {
@@ -2903,8 +2894,7 @@
       };
 
      logoutBtn.onclick = () => {
-         currentUser = null;
-         localStorage.removeItem("player");
+         clearCurrentUser();
          showAuthView("login");
      };
 
@@ -2930,14 +2920,12 @@
       };
 
       document.getElementById("logoutBtnInner").onclick = () => {
-          currentUser = null;
-          localStorage.removeItem("player");
-          showAuthView("login");
+         clearCurrentUser();
+         showAuthView("login");
        };
      }
 
         // 🏆 TOURNAMENT SYSTEM
-        let currentUser = null;
         let currentTournamentMatchId = null;
         let activeTournament = null;
         const lobby = document.getElementById("tLobby");
