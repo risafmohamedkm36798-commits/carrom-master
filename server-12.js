@@ -194,7 +194,7 @@ app.use(express.urlencoded({ extended: true }));
 app.set('trust proxy', 1);
 // session middleware (production-ready store)
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'dev-secret-change-me',
+  secret: process.env.SESSION_SECRET || 'dev-secret-me',
   resave: false,
   saveUninitialized: false,
   store: (typeof MongoStore.create === 'function' && process.env.MONGO_URI)
@@ -1705,6 +1705,37 @@ app.post("/reset-password", async (req, res) => {
     await user.save();
 
     req.session.user = user;
+    res.json({ success: true, message: "Password changed successfully", user });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+app.post("/change-password", async (req, res) => {
+  try {
+    if (!req.session.user?.playerId) {
+      return res.json({ success: false, message: "Not logged in" });
+    }
+
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return res.json({ success: false, message: "All fields are required" });
+    }
+    if (newPassword !== confirmPassword) {
+      return res.json({ success: false, message: "Passwords do not match" });
+    }
+
+    const user = await User.findOne({ playerId: req.session.user.playerId });
+    if (!user) return res.json({ success: false, message: "User not found" });
+
+    const ok = await bcrypt.compare(currentPassword, user.password);
+    if (!ok) {
+      return res.json({ success: false, message: "Current password is wrong" });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+    req.session.user = user;
+
     res.json({ success: true, message: "Password changed successfully", user });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

@@ -1155,6 +1155,22 @@
         // ══════════════════════════════════════════════════════════════════
         //  SOCKET
         // ══════════════════════════════════════════════════════════════════
+        window.currentUser = window.currentUser || null;
+        let currentUser = window.currentUser;
+
+        function setCurrentUser(user) {
+          currentUser = user;
+          window.currentUser = user;
+          localStorage.setItem("player", JSON.stringify(user));
+          window.myPlayerId = user.playerId;
+          window.currentPlayerId = user.playerId;
+       }
+
+       function clearCurrentUser() {
+         currentUser = null;
+         window.currentUser = null;
+         localStorage.removeItem("player");
+      }
         let socket = null;
 
         try {
@@ -2788,137 +2804,137 @@
                  forgotBtn.style.display = "block";
               }
            }
-       };
+        };
 
-       submitRegisterBtn.onclick = async () => {
-          const name = regName.value.trim();
-          const email = regEmail.value.trim();
-          const password = regPassword.value;
-          const confirmPassword = regConfirmPassword.value;
+        submitRegisterBtn.onclick = async () => {
+           const name = regName.value.trim();
+           const email = regEmail.value.trim();
+           const password = regPassword.value;
+           const confirmPassword = regConfirmPassword.value;
 
-          if (!name || !email || !password || !confirmPassword) {
-             alert("Please fill all fields");
+           if (!name || !email || !password || !confirmPassword) {
+              alert("Please fill all fields");
+              return;
+           }
+
+           if (password !== confirmPassword) {
+              alert("Passwords do not match");
+              return;
+           }
+
+           const res = await fetch("/register", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ name, email, password })
+           });
+
+           const data = await res.json();
+
+           if (data.success) {
+              currentUser = data.user;
+              localStorage.setItem("player", JSON.stringify(data.user));
+              window.myPlayerId = data.user.playerId;
+              window.currentPlayerId = data.user.playerId;
+              showProfile(data.user);
+            } else {
+               alert(data.message);
+           }
+         };
+
+         sendResetBtn.onclick = async () => {
+           const email = forgotEmail.value.trim();
+          if (!email) {
+             alert("Enter your email");
              return;
           }
 
-         if (password !== confirmPassword) {
-             alert("Passwords do not match");
-             return;
-         }
-
-        const res = await fetch("/register", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ name, email, password })
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-           currentUser = data.user;
-           localStorage.setItem("player", JSON.stringify(data.user));
-           window.myPlayerId = data.user.playerId;
-           window.currentPlayerId = data.user.playerId;
-           showProfile(data.user);
-        } else {
-           alert(data.message);
-        }
-     };
-
-    sendResetBtn.onclick = async () => {
-        const email = forgotEmail.value.trim();
-        if (!email) {
-           alert("Enter your email");
-           return;
-        }
-
-        const res = await fetch("/forgot-password", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ email })
-        });
-
-        const data = await res.json();
-        alert(data.message);
-
-        if (data.success) {
-            resetEmail.value = email;
-            showAuthView("reset");
-        }
-    };
-
-    submitResetBtn.onclick = async () => {
-        const email = resetEmail.value.trim();
-        const code = resetCode.value.trim();
-        const newPassword = resetNewPassword.value;
-        const confirmPassword = resetConfirmPassword.value;
-
-        if (!email || !code || !newPassword || !confirmPassword) {
-           alert("Please fill all fields");
-           return;
-        }
-
-        if (newPassword !== confirmPassword) {
-           alert("Passwords do not match");
-           return;
-        }
-
-        const res = await fetch("/reset-password", {
+          const res = await fetch("/forgot-password", {
              method: "POST",
              headers: { "Content-Type": "application/json" },
              credentials: "include",
-             body: JSON.stringify({ email, code, newPassword, confirmPassword })
-        });
+             body: JSON.stringify({ email })
+          });
 
-        const data = await res.json();
+         const data = await res.json();
+         alert(data.message);
 
-        if (data.success) {
-        currentUser = data.user;
-        localStorage.setItem("player", JSON.stringify(data.user));
-        window.myPlayerId = data.user.playerId;
-        window.currentPlayerId = data.user.playerId;
-        showProfile(data.user);
-        alert("Password changed successfully");
-    } else {
-        alert(data.message);
-    }
-  };
+         if (data.success) {
+             resetEmail.value = email;
+             showAuthView("reset");
+         }
+      };
 
-  logoutBtn.onclick = () => {
-      currentUser = null;
-      localStorage.removeItem("player");
-      showAuthView("login");
-   };
+      submitResetBtn.onclick = async () => {
+         const email = resetEmail.value.trim();
+         const code = resetCode.value.trim();
+         const newPassword = resetNewPassword.value;
+         const confirmPassword = resetConfirmPassword.value;
 
-   function showProfile(user) {
-      hideAllAuthViews();
-      authTitle.textContent = "Profile";
-      profileView.classList.remove("hidden");
+         if (!email || !code || !newPassword || !confirmPassword) {
+            alert("Please fill all fields");
+            return;
+         }
 
-      profileView.innerHTML = `
-          <div style="display:flex;flex-direction:column;gap:8px;">
-             <h3 style="margin:0 0 8px 0;">${user.name}</h3>
-             <p style="margin:0;"><b>Player ID:</b> ${user.playerId}</p>
-             <p style="margin:0;"><b>Email:</b> ${user.email}</p>
-             <p style="margin:0;"><b>Coins:</b> ${user.coins}</p>
-             <button id="changePassQuickBtn" style="margin-top:10px;">Change Password</button>
-             <button id="logoutBtnInner" style="margin-top:8px;background:#ef4444;color:#fff;">Logout</button>
-         </div>
-     `;
+         if (newPassword !== confirmPassword) {
+            alert("Passwords do not match");
+            return;
+         }
 
-     document.getElementById("changePassQuickBtn").onclick = () => {
-         resetEmail.value = user.email;
-         showAuthView("reset");
-     };
+         const res = await fetch("/reset-password", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ email, code, newPassword, confirmPassword })
+         });
 
-     document.getElementById("logoutBtnInner").onclick = () => {
+         const data = await res.json();
+
+         if (data.success) {
+            currentUser = data.user;
+            localStorage.setItem("player", JSON.stringify(data.user));
+            window.myPlayerId = data.user.playerId;
+            window.currentPlayerId = data.user.playerId;
+            showProfile(data.user);
+            alert("Password changed successfully");
+         } else {
+           alert(data.message);
+        }
+      };
+
+     logoutBtn.onclick = () => {
          currentUser = null;
          localStorage.removeItem("player");
          showAuthView("login");
      };
- }
+
+     function showProfile(user) {
+         hideAllAuthViews();
+         authTitle.textContent = "Profile";
+         profileView.classList.remove("hidden");
+
+         profileView.innerHTML = `
+           <div style="display:flex;flex-direction:column;gap:8px;">
+              <h3 style="margin:0 0 8px 0;">${user.name}</h3>
+              <p style="margin:0;"><b>Player ID:</b> ${user.playerId}</p>
+              <p style="margin:0;"><b>Email:</b> ${user.email}</p>
+              <p style="margin:0;"><b>Coins:</b> ${user.coins}</p>
+              <button id="changePassQuickBtn" style="margin-top:10px;">Change Password</button>
+              <button id="logoutBtnInner" style="margin-top:8px;background:#ef4444;color:#fff;">Logout</button>
+          </div>
+      `;
+
+      document.getElementById("changePassQuickBtn").onclick = () => {
+          resetEmail.value = user.email;
+          showAuthView("reset");
+      };
+
+      document.getElementById("logoutBtnInner").onclick = () => {
+          currentUser = null;
+          localStorage.removeItem("player");
+          showAuthView("login");
+       };
+     }
 
         // 🏆 TOURNAMENT SYSTEM
         let currentUser = null;
