@@ -7,6 +7,8 @@ const MongoStore = (MongoStorePkg && MongoStorePkg.default) ? MongoStorePkg.defa
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const http = require("http");
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
 const { Server } = require("socket.io");
 const RedeemCode = require("./models/RedeemCode");
 // connect to MongoDB (do not call models yet)
@@ -26,7 +28,23 @@ mongoose.connect(MONGO_URI)
     // keep the process down so Render will show the error and you can debug
     process.exit(1);
   });
+ const transporter = process.env.SMTP_HOST ? nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT || 587),
+  secure: String(process.env.SMTP_SECURE || "false") === "true",
+  auth: process.env.SMTP_USER ? {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
+  } : undefined
+ }) : null;
 
+ function hashToken(token) {
+  return crypto.createHash("sha256").update(token).digest("hex");
+ }
+
+ function makeResetCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+ }
 // --- UTILITY: safeRunMatchOp (Mutex) ---
 // Run an async match operation only if not already running. If running, return false.
 async function safeRunMatchOp(match, op) {
@@ -109,6 +127,8 @@ const userSchema = new mongoose.Schema({
   wins: { type: Number, default: 0 },
   lives: { type: Number, default: 3 },
   winStreak: { type: Number, default: 0 }
+  resetTokenHash: { type: String, default: null },
+  resetTokenExpires: { type: Date, default: null }
 }, { timestamps: true });
 
 const User = mongoose.model("User", userSchema);
@@ -1599,9 +1619,13 @@ app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      return res.json({ success: false, message: "Email and password are required" });
+    }
+
     const user = await User.findOne({ email });
     if (!user) {
-      return res.json({ success: false, message: "User not found" });
+      return res.json({ success: false, message: "Account not found" });
     }
 
     const match = await bcrypt.compare(password, user.password);
@@ -1609,10 +1633,79 @@ app.post("/login", async (req, res) => {
       return res.json({ success: false, message: "Wrong password" });
     }
 
-    // Store in session
     req.session.user = user;
     res.json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+app.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
 
+    if (!email) {
+      return res.json({ success: false, message: "Email is required" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.json({ success: false, message: "No account found for this email" });
+    }
+
+    const resetCode = makeResetCode();
+    user.resetTokenHash = hashToken(resetCode);
+    user.resetTokenExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    await user.save();
+
+    if (transporter) {
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: email,
+        subject: "Carrom Master PvP Password Reset Code",
+        text: `Your password reset code is ${resetCode}. It expires in 15 minutes.`
+      });
+    } else {
+      console.log("[DEV RESET CODE]", email, resetCode);
+    }
+
+    res.json({ success: true, message: "Reset code sent to your email" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.post("/reset-password", async (req, res) => {
+  try {
+    const { email, code, newPassword, confirmPassword } = req.body;
+
+    if (!email || !code || !newPassword || !confirmPassword) {
+      return res.json({ success: false, message: "All fields are required" });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.json({ success: false, message: "Passwords do not match" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user || !user.resetTokenHash || !user.resetTokenExpires) {
+      return res.json({ success: false, message: "Reset code not requested" });
+    }
+
+    if (user.resetTokenExpires < new Date()) {
+      return res.json({ success: false, message: "Reset code expired" });
+    }
+
+    if (hashToken(code) !== user.resetTokenHash) {
+      return res.json({ success: false, message: "Invalid reset code" });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.resetTokenHash = null;
+    user.resetTokenExpires = null;
+    await user.save();
+
+    req.session.user = user;
+    res.json({ success: true, message: "Password changed successfully", user });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

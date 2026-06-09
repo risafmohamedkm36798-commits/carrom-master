@@ -7,7 +7,9 @@
     "start": "node server-12.js",
     "start:dev": "NODE_ENV=development nodemon server-12.js"
   },
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "connect-mongo": "^6.0.0",
@@ -17,6 +19,7 @@
     "express-session": "^1.17.3",
     "matter-js": "^0.20.0",
     "mongoose": "^9.2.1",
+    "nodemailer": "^8.0.10",
     "socket.io": "^4.8.3"
   }
 }

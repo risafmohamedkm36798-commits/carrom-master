@@ -988,25 +988,87 @@
     <script src="/socket.io/socket.io.js"></script>
     <!-- Polished Auth/Profile Modal -->
     <div id="authModal" class="auth-modal">
-        <div class="auth-box">
+     <div class="auth-box" style="width:min(360px, 92vw); text-align:left;">
+    
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+       <h2 id="authTitle" style="margin:0;">Login</h2>
+       <button id="closeAuth" style="width:38px;height:38px;border:none;border-radius:10px;background:#ef4444;color:#fff;font-size:18px;font-weight:900;cursor:pointer;">✕</button>
+      </div>
 
-            <h2 id="authTitle">Login</h2>
+      <div id="loginView">
+       <label>Email</label>
+       <input type="email" id="loginEmail" placeholder="Enter email">
+ 
+       <label>Password</label>
+       <div style="display:flex;gap:8px;align-items:center;">
+         <input type="password" id="loginPassword" placeholder="Enter password" style="flex:1;">
+         <button type="button" id="toggleLoginPass" style="width:44px;height:44px;border:none;border-radius:10px;background:#374151;color:white;cursor:pointer;">👁</button>
+       </div>
 
-            <input type="text" id="authName" placeholder="Name (Register only)" style="display:none;">
-            <input type="email" id="authEmail" placeholder="Email">
-            <input type="password" id="authPassword" placeholder="Password">
+       <div id="loginError" style="display:none;color:#f87171;font-size:13px;margin-top:8px;font-weight:700;"></div>
 
-            <button id="loginBtn">Login</button>
-            <button id="registerBtn">Register</button>
+       <button id="loginBtn" style="width:100%;margin-top:14px;">Login</button>
+       <button id="goRegisterBtn" style="width:100%;margin-top:8px;background:#2563eb;color:#fff;">Register</button>
+       <button id="forgotBtn" style="width:100%;margin-top:8px;background:transparent;border:1px solid #374151;color:#fbbf24;display:none;">Forgot password?</button>
+     </div>
 
-            <button id="logoutBtn" style="display:none;">Logout</button>
+     <div id="registerView" class="hidden">
+       <label>Name</label>
+       <input type="text" id="regName" placeholder="Your name">
 
-            <div id="profileInfo" style="display:none;"></div>
+       <label>Email</label>
+       <input type="email" id="regEmail" placeholder="Enter email">
 
-            <button id="closeAuth">Close</button>
+       <label>Password</label>
+       <div style="display:flex;gap:8px;align-items:center;">
+         <input type="password" id="regPassword" placeholder="Create password" style="flex:1;">
+         <button type="button" id="toggleRegPass" style="width:44px;height:44px;border:none;border-radius:10px;background:#374151;color:white;cursor:pointer;">👁</button>
+       </div>
 
-        </div>
-    </div>
+       <label>Confirm Password</label>
+       <div style="display:flex;gap:8px;align-items:center;">
+         <input type="password" id="regConfirmPassword" placeholder="Confirm password" style="flex:1;">
+         <button type="button" id="toggleRegConfirmPass" style="width:44px;height:44px;border:none;border-radius:10px;background:#374151;color:white;cursor:pointer;">👁</button>
+       </div>
+
+       <button id="submitRegisterBtn" style="width:100%;margin-top:14px;">Create Account</button>
+       <button id="backToLoginBtn" style="width:100%;margin-top:8px;background:transparent;border:1px solid #374151;color:#d1d5db;">Back to login</button>
+     </div>
+
+     <div id="forgotView" class="hidden">
+       <label>Email</label>
+       <input type="email" id="forgotEmail" placeholder="Enter your email">
+
+       <button id="sendResetBtn" style="width:100%;margin-top:14px;">Send reset code</button>
+       <button id="backToLoginBtn2" style="width:100%;margin-top:8px;background:transparent;border:1px solid #374151;color:#d1d5db;">Back to login</button>
+     </div>
+
+     <div id="resetView" class="hidden">
+       <label>Email</label>
+       <input type="email" id="resetEmail" placeholder="Enter email">
+
+       <label>Reset Code</label>
+       <input type="text" id="resetCode" placeholder="6-digit code">
+
+       <label>New Password</label>
+       <div style="display:flex;gap:8px;align-items:center;">
+         <input type="password" id="resetNewPassword" placeholder="New password" style="flex:1;">
+         <button type="button" id="toggleResetPass" style="width:44px;height:44px;border:none;border-radius:10px;background:#374151;color:white;cursor:pointer;">👁</button>
+       </div>
+
+       <label>Confirm New Password</label>
+       <div style="display:flex;gap:8px;align-items:center;">
+         <input type="password" id="resetConfirmPassword" placeholder="Confirm new password" style="flex:1;">
+         <button type="button" id="toggleResetConfirmPass" style="width:44px;height:44px;border:none;border-radius:10px;background:#374151;color:white;cursor:pointer;">👁</button>
+       </div>
+
+       <button id="submitResetBtn" style="width:100%;margin-top:14px;">Change password</button>
+       <button id="backToLoginBtn3" style="width:100%;margin-top:8px;background:transparent;border:1px solid #374151;color:#d1d5db;">Back to login</button>
+     </div>
+
+     <div id="profileView" class="hidden" style="text-align:left;"></div>
+   </div>
+ </div>
 
     <!-- Redeem Modal (Clean Version) -->
     <div id="redeemModal" class="modal hidden">
@@ -2599,149 +2661,264 @@
 
         // ✅ STEP 6 — JAVASCRIPT LOGIC
         const authModal = document.getElementById("authModal");
+        const authTitle = document.getElementById("authTitle");
+
+        const loginView = document.getElementById("loginView");
+        const registerView = document.getElementById("registerView");
+        const forgotView = document.getElementById("forgotView");
+        const resetView = document.getElementById("resetView");
+        const profileView = document.getElementById("profileView");
+
+        const loginEmail = document.getElementById("loginEmail");
+        const loginPassword = document.getElementById("loginPassword");
+        const loginError = document.getElementById("loginError");
+
+        const regName = document.getElementById("regName");
+        const regEmail = document.getElementById("regEmail");
+        const regPassword = document.getElementById("regPassword");
+        const regConfirmPassword = document.getElementById("regConfirmPassword");
+
+        const forgotEmail = document.getElementById("forgotEmail");
+
+        const resetEmail = document.getElementById("resetEmail");
+        const resetCode = document.getElementById("resetCode");
+        const resetNewPassword = document.getElementById("resetNewPassword");
+        const resetConfirmPassword = document.getElementById("resetConfirmPassword");
+
         const loginBtn = document.getElementById("loginBtn");
-        const registerBtn = document.getElementById("registerBtn");
-        const logoutBtn = document.getElementById("logoutBtn");
-        const closeAuth = document.getElementById("closeAuth");
+        const goRegisterBtn = document.getElementById("goRegisterBtn");
+        const forgotBtn = document.getElementById("forgotBtn");
+        const submitRegisterBtn = document.getElementById("submitRegisterBtn");
+        const sendResetBtn = document.getElementById("sendResetBtn");
+        const submitResetBtn = document.getElementById("submitResetBtn");
 
-        const authName = document.getElementById("authName");
-        const authEmail = document.getElementById("authEmail");
-        const authPassword = document.getElementById("authPassword");
-        const profileInfo = document.getElementById("profileInfo");
+        const backToLoginBtn = document.getElementById("backToLoginBtn");
+        const backToLoginBtn2 = document.getElementById("backToLoginBtn2");
+        const backToLoginBtn3 = document.getElementById("backToLoginBtn3");
 
-        document.getElementById("profileIcon").onclick = () => {
-            const savedUser = localStorage.getItem("player");
-            authModal.style.display = "flex";
-            if (savedUser) {
-                showProfile(JSON.parse(savedUser));
-            } else {
-                showAuthForm();
-            }
-        };
+        function hideAllAuthViews() {
+            [loginView, registerView, forgotView, resetView, profileView].forEach(v => v.classList.add("hidden"));
+        }
 
-        closeAuth.onclick = () => {
-            authModal.style.display = "none";
-        };
+        function showAuthView(view) {
+            hideAllAuthViews();
+            authTitle.textContent = ({
+                login: "Login",
+                register: "Register",
+                forgot: "Forgot Password",
+                reset: "Reset Password"
+            })[view] || "Login";
 
-        registerBtn.onclick = async () => {
-            if (!authName.value || !authEmail.value || !authPassword.value) {
-                alert("Please fill all fields");
-                return;
-            }
+            if (view === "login") loginView.classList.remove("hidden");
+            if (view === "register") registerView.classList.remove("hidden");
+            if (view === "forgot") forgotView.classList.remove("hidden");
+            if (view === "reset") resetView.classList.remove("hidden");
+            if (view === "profile") profileView.classList.remove("hidden");
+        }
 
-            const res = await fetch("/register", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify({
-                    name: authName.value,
-                    email: authEmail.value,
-                    password: authPassword.value
-                })
-            });
+        function setPasswordToggle(btnId, inputId) {
+            const btn = document.getElementById(btnId);
+            const input = document.getElementById(inputId);
+            btn.onclick = () => {
+                input.type = input.type === "password" ? "text" : "password";
+                btn.textContent = input.type === "password" ? "👁" : "🙈";
+            };
+        }
 
-            const data = await res.json();
+        setPasswordToggle("toggleLoginPass", "loginPassword");
+        setPasswordToggle("toggleRegPass", "regPassword");
+        setPasswordToggle("toggleRegConfirmPass", "regConfirmPassword");
+        setPasswordToggle("toggleResetPass", "resetNewPassword");
+        setPasswordToggle("toggleResetConfirmPass", "resetConfirmPassword");
 
-            if (data.success) {
+       document.getElementById("profileIcon").onclick = () => {
+          const savedUser = localStorage.getItem("player");
+          authModal.style.display = "flex";
+
+          if (savedUser) {
+             showProfile(JSON.parse(savedUser));
+          } else {
+             showAuthView("login");
+         }
+       };
+
+       document.getElementById("closeAuth").onclick = () => {
+          authModal.style.display = "none";
+       };
+
+       goRegisterBtn.onclick = () => showAuthView("register");
+       backToLoginBtn.onclick = () => showAuthView("login");
+       backToLoginBtn2.onclick = () => showAuthView("login");
+       backToLoginBtn3.onclick = () => showAuthView("login");
+
+       forgotBtn.onclick = () => {
+           forgotEmail.value = loginEmail.value || "";
+           showAuthView("forgot");
+       };
+
+       loginBtn.onclick = async () => {
+           const email = loginEmail.value.trim();
+           const password = loginPassword.value;
+
+          if (!email || !password) {
+             alert("Enter email and password");
+             return;
+          }
+
+          const res = await fetch("/login", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ email, password })
+           });
+
+           const data = await res.json();
+
+           if (data.success) {
                currentUser = data.user;
                localStorage.setItem("player", JSON.stringify(data.user));
                window.myPlayerId = data.user.playerId;
                window.currentPlayerId = data.user.playerId;
                showProfile(data.user);
-            } else {
-                alert(data.message);
-            }
-        };
+           } else {
+              loginError.style.display = "block";
+              loginError.textContent = data.message || "Login failed";
 
-        loginBtn.onclick = async () => {
-            if (!authEmail.value || !authPassword.value) {
-                alert("Enter email and password");
-                return;
-            }
+              if ((data.message || "").toLowerCase().includes("password")) {
+                 forgotBtn.style.display = "block";
+              }
+           }
+       };
 
-            const res = await fetch("/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify({
-                    email: authEmail.value,
-                    password: authPassword.value
-                })
-            });
+       submitRegisterBtn.onclick = async () => {
+          const name = regName.value.trim();
+          const email = regEmail.value.trim();
+          const password = regPassword.value;
+          const confirmPassword = regConfirmPassword.value;
 
-            const data = await res.json();
+          if (!name || !email || !password || !confirmPassword) {
+             alert("Please fill all fields");
+             return;
+          }
 
-            if (data.success) {
-               currentUser = data.user;
-               localStorage.setItem("player", JSON.stringify(data.user));
-               window.myPlayerId = data.user.playerId;
-               window.currentPlayerId = data.user.playerId;
-               showProfile(data.user);
-            } else {
-                alert(data.message);
-            }
-        };
+         if (password !== confirmPassword) {
+             alert("Passwords do not match");
+             return;
+         }
 
-        logoutBtn.onclick = () => {
-            currentUser = null;
-            showAuthForm();
-        };
+        const res = await fetch("/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ name, email, password })
+        });
 
-        function showProfile(user) {
-            // Hide auth inputs
-            localStorage.setItem("player", JSON.stringify(user));
-            window.myPlayerId = user.playerId;
-            window.currentPlayerId = user.playerId;
-            authName.style.display = "none";
-            authEmail.style.display = "none";
-            authPassword.style.display = "none";
-            loginBtn.style.display = "none";
-            registerBtn.style.display = "none";
+        const data = await res.json();
 
-            // Show logout
-            logoutBtn.style.display = "block";
+        if (data.success) {
+           currentUser = data.user;
+           localStorage.setItem("player", JSON.stringify(data.user));
+           window.myPlayerId = data.user.playerId;
+           window.currentPlayerId = data.user.playerId;
+           showProfile(data.user);
+        } else {
+           alert(data.message);
+        }
+     };
 
-            // Show clean profile info
-            profileInfo.style.display = "block";
-            profileInfo.innerHTML = `
-        <h3>${user.name}</h3>
-        <p><b>Player ID:</b> ${user.playerId}</p>
-        <p><b>Coins:</b> ${user.coins}</p>
-      `;
+    sendResetBtn.onclick = async () => {
+        const email = forgotEmail.value.trim();
+        if (!email) {
+           alert("Enter your email");
+           return;
         }
 
-        function showAuthForm() {
-            profileInfo.style.display = "none";
+        const res = await fetch("/forgot-password", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ email })
+        });
 
-            authName.style.display = "block";
-            authEmail.style.display = "block";
-            authPassword.style.display = "block";
+        const data = await res.json();
+        alert(data.message);
 
-            loginBtn.style.display = "block";
-            registerBtn.style.display = "block";
-            logoutBtn.style.display = "none";
+        if (data.success) {
+            resetEmail.value = email;
+            showAuthView("reset");
+        }
+    };
 
-            authName.value = "";
-            authEmail.value = "";
-            authPassword.value = "";
+    submitResetBtn.onclick = async () => {
+        const email = resetEmail.value.trim();
+        const code = resetCode.value.trim();
+        const newPassword = resetNewPassword.value;
+        const confirmPassword = resetConfirmPassword.value;
+
+        if (!email || !code || !newPassword || !confirmPassword) {
+           alert("Please fill all fields");
+           return;
         }
 
-        async function checkSession() {
-            try {
-                const res = await fetch("/check-auth", { credentials: "include" });
-                const data = await res.json();
-                if (data.loggedIn) {
-                   currentUser = data.user;
-                   localStorage.setItem("player", JSON.stringify(data.user));
-                   window.myPlayerId = data.user.playerId;
-                   window.currentPlayerId = data.user.playerId;
-                   showProfile(data.user);
-                } else {
-                    currentUser = null;
-                    showAuthForm();
-                }
-            } catch (err) { console.error("Auth check failed", err); }
+        if (newPassword !== confirmPassword) {
+           alert("Passwords do not match");
+           return;
         }
+
+        const res = await fetch("/reset-password", {
+             method: "POST",
+             headers: { "Content-Type": "application/json" },
+             credentials: "include",
+             body: JSON.stringify({ email, code, newPassword, confirmPassword })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+        currentUser = data.user;
+        localStorage.setItem("player", JSON.stringify(data.user));
+        window.myPlayerId = data.user.playerId;
+        window.currentPlayerId = data.user.playerId;
+        showProfile(data.user);
+        alert("Password changed successfully");
+    } else {
+        alert(data.message);
+    }
+  };
+
+  logoutBtn.onclick = () => {
+      currentUser = null;
+      localStorage.removeItem("player");
+      showAuthView("login");
+   };
+
+   function showProfile(user) {
+      hideAllAuthViews();
+      authTitle.textContent = "Profile";
+      profileView.classList.remove("hidden");
+
+      profileView.innerHTML = `
+          <div style="display:flex;flex-direction:column;gap:8px;">
+             <h3 style="margin:0 0 8px 0;">${user.name}</h3>
+             <p style="margin:0;"><b>Player ID:</b> ${user.playerId}</p>
+             <p style="margin:0;"><b>Email:</b> ${user.email}</p>
+             <p style="margin:0;"><b>Coins:</b> ${user.coins}</p>
+             <button id="changePassQuickBtn" style="margin-top:10px;">Change Password</button>
+             <button id="logoutBtnInner" style="margin-top:8px;background:#ef4444;color:#fff;">Logout</button>
+         </div>
+     `;
+
+     document.getElementById("changePassQuickBtn").onclick = () => {
+         resetEmail.value = user.email;
+         showAuthView("reset");
+     };
+
+     document.getElementById("logoutBtnInner").onclick = () => {
+         currentUser = null;
+         localStorage.removeItem("player");
+         showAuthView("login");
+     };
+ }
 
         // 🏆 TOURNAMENT SYSTEM
         let currentUser = null;
