@@ -32,10 +32,11 @@ mongoose.connect(MONGO_URI)
   host: process.env.SMTP_HOST,
   port: Number(process.env.SMTP_PORT || 587),
   secure: String(process.env.SMTP_SECURE || "false") === "true",
+  family: 4,
   auth: process.env.SMTP_USER ? {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS
-  } : undefined
+   } : undefined
  }) : null;
 
  function hashToken(token) {
@@ -1670,7 +1671,8 @@ app.post("/forgot-password", async (req, res) => {
 
     res.json({ success: true, message: "Reset code sent to your email" });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+  console.error("[FORGOT_PASSWORD_ERROR]", err);
+  res.status(500).json({ success: false, message: "Failed to send reset code" });
   }
 });
 
