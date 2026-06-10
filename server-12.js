@@ -1664,24 +1664,32 @@ app.post("/forgot-password", async (req, res) => {
 
     const resetCode = makeResetCode();
     user.resetTokenHash = hashToken(resetCode);
-    user.resetTokenExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    user.resetTokenExpires = new Date(Date.now() + 15 * 60 * 1000);
     await user.save();
 
+    // respond immediately
+    res.json({
+      success: true,
+      message: "Reset code generated",
+      resetCode
+    });
+
+    // try email in the background, but do not block the response
     if (transporter) {
-      await transporter.sendMail({
+      transporter.sendMail({
         from: process.env.SMTP_FROM || process.env.SMTP_USER,
         to: email,
         subject: "Carrom Master PvP Password Reset Code",
         text: `Your password reset code is ${resetCode}. It expires in 15 minutes.`
+      }).catch(err => {
+        console.error("[RESET_MAIL_BACKGROUND_ERROR]", err);
       });
     } else {
       console.log("[DEV RESET CODE]", email, resetCode);
     }
-
-    res.json({ success: true, message: "Reset code " });
   } catch (err) {
-  console.error("[FORGOT_PASSWORD_ERROR]", err);
-  res.status(500).json({ success: false, message: "Failed to send reset code" });
+    console.error("[FORGOT_PASSWORD_ERROR]", err);
+    res.status(500).json({ success: false, message: "Failed to send reset code" });
   }
 });
 

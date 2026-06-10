@@ -2848,36 +2848,49 @@
          };
 
          sendResetBtn.onclick = async () => {
-            const email = forgotEmail.value.trim();
-            if (!email) {
-               alert("Enter your email");
-               return;
-            }
+           const email = forgotEmail.value.trim();
 
-            const res = await fetch("/forgot-password", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify({ email })
-           });
-
-           const data = await res.json();
-
-           if (!data.success) {
-              alert(data.message || "Failed to send reset code");
+           if (!email) {
+              alert("Enter your email");
               return;
             }
 
-           resetEmail.value = email;
+           sendResetBtn.disabled = true;
+           sendResetBtn.textContent = "Sending...";
 
-          const resetCodeBox = document.getElementById("resetCodeBox");
-          if (resetCodeBox) {
-             resetCodeBox.style.display = "block";
-             resetCodeBox.innerHTML = `Reset code: <span style="font-size:22px; letter-spacing:2px;">${data.resetCode}</span>`;
-          }
+           try {
+             const res = await fetch("/forgot-password", {
+               method: "POST",
+               headers: { "Content-Type": "application/json" },
+               credentials: "include",
+               body: JSON.stringify({ email })
+            });
 
-          showAuthView("reset");
-        };
+            const data = await res.json();
+
+            if (!data.success) {
+                alert(data.message || "Failed to send reset code");
+                return;
+            }
+
+            resetEmail.value = email;
+
+            const resetCodeBox = document.getElementById("resetCodeBox");
+            if (resetCodeBox) {
+               resetCodeBox.style.display = "block";
+               resetCodeBox.innerHTML = `Reset Code: <span style="font-size:24px; letter-spacing:3px;">${data.resetCode}</span>`;
+            }
+
+            showAuthView("reset");
+            document.getElementById("resetCode").focus();
+          } catch (err) {
+             console.error(err);
+             alert("Failed to send reset code");
+           } finally {
+            sendResetBtn.disabled = false;
+            sendResetBtn.textContent = "Send reset code";
+           }
+         };
 
       submitResetBtn.onclick = async () => {
          const email = resetEmail.value.trim();
