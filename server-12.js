@@ -28,10 +28,12 @@ mongoose.connect(MONGO_URI)
     // keep the process down so Render will show the error and you can debug
     process.exit(1);
   });
+ const smtpPort = Number(process.env.SMTP_PORT || 587);
+
  const transporter = process.env.SMTP_HOST ? nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT || 587),
-  secure: String(process.env.SMTP_SECURE || "false") === "true",
+  host: process.env.SMTP_HOST.trim(),
+  port: smtpPort,
+  secure: smtpPort == 465,
   family: 4,
   auth: process.env.SMTP_USER ? {
     user: process.env.SMTP_USER,
