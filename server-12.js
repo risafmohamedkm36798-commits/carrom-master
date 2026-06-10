@@ -30,17 +30,24 @@ mongoose.connect(MONGO_URI)
   });
  const smtpPort = Number(process.env.SMTP_PORT || 587);
 
- const transporter = process.env.SMTP_HOST ? nodemailer.createTransport({
-  host: process.env.SMTP_HOST.trim(),
-  port: smtpPort,
-  secure: smtpPort == 465,
+ const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT),
+  secure: true,
   family: 4,
-  auth: process.env.SMTP_USER ? {
+  auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS
-   } : undefined
- }) : null;
+  }
+});
 
+transporter.verify(function(error, success) {
+  if (error) {
+    console.log("SMTP ERROR:", error);
+  } else {
+    console.log("SMTP READY");
+  }
+});
  function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
  }
@@ -1671,7 +1678,7 @@ app.post("/forgot-password", async (req, res) => {
       console.log("[DEV RESET CODE]", email, resetCode);
     }
 
-    res.json({ success: true, message: "Reset code sent to your email" });
+    res.json({ success: true, message: "Reset code " });
   } catch (err) {
   console.error("[FORGOT_PASSWORD_ERROR]", err);
   res.status(500).json({ success: false, message: "Failed to send reset code" });
