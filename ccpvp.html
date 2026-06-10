@@ -2913,7 +2913,7 @@
 
       document.getElementById("changePassQuickBtn").onclick = () => {
           forgotEmail.value = user.email;
-          showAuthView("reset");
+          showAuthView("forgot");
       };
 
       document.getElementById("logoutBtnInner").onclick = () => {
@@ -3813,12 +3813,25 @@
           });
          }
       });
+      async function checkSession() {
+         try {
+             const res = await fetch("/check-auth", { credentials: "include" });
+             const data = await res.json();
 
-        window.onload = () => {
-            // Auth check
-            checkSession();
-            showScreen("mainMenu");
-        };
+             if (data.loggedIn && data.user) {
+                 setCurrentUser(data.user);
+             } else {
+                   clearCurrentUser();
+             }
+          } catch (err) {
+               console.error("[CHECK_SESSION_ERROR]", err);
+               clearCurrentUser();
+          }
+         }  
+        window.onload = async () => {
+           await checkSession();
+           showScreen("mainMenu");
+         };
     </script>
     <script id="spectate-client-retry">
         /* CLIENT: robust spectate click with retries and ACK handling */
