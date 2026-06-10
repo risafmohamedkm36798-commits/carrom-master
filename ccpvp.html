@@ -1046,7 +1046,18 @@
      <div id="resetView" class="hidden">
        <label>Email</label>
        <input type="email" id="resetEmail" placeholder="Enter email">
-
+       <div id="resetCodeBox"
+           style="display:none;
+            margin:10px 0 12px 0;
+            padding:12px;
+            border-radius:10px;
+            background:#111827;
+            border:1px solid #ffcc00;
+            color:#ffcc00;
+            font-weight:900;
+            text-align:center;">
+          Reset code will appear here
+         </div>
        <label>Reset Code</label>
        <input type="text" id="resetCode" placeholder="6-digit code">
 
@@ -2837,27 +2848,36 @@
          };
 
          sendResetBtn.onclick = async () => {
-           const email = forgotEmail.value.trim();
-          if (!email) {
-             alert("Enter your email");
-             return;
+            const email = forgotEmail.value.trim();
+            if (!email) {
+               alert("Enter your email");
+               return;
+            }
+
+            const res = await fetch("/forgot-password", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ email })
+           });
+
+           const data = await res.json();
+
+           if (!data.success) {
+              alert(data.message || "Failed to send reset code");
+              return;
+            }
+
+           resetEmail.value = email;
+
+          const resetCodeBox = document.getElementById("resetCodeBox");
+          if (resetCodeBox) {
+             resetCodeBox.style.display = "block";
+             resetCodeBox.innerHTML = `Reset code: <span style="font-size:22px; letter-spacing:2px;">${data.resetCode}</span>`;
           }
 
-          const res = await fetch("/forgot-password", {
-             method: "POST",
-             headers: { "Content-Type": "application/json" },
-             credentials: "include",
-             body: JSON.stringify({ email })
-          });
-
-         const data = await res.json();
-         alert(data.message);
-
-         if (data.success) {
-             resetEmail.value = email;
-             showAuthView("reset");
-         }
-      };
+          showAuthView("reset");
+        };
 
       submitResetBtn.onclick = async () => {
          const email = resetEmail.value.trim();
